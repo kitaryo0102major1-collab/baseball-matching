@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  --color-main: #1D9E75;
+  --color-main-dark: #0F6E56;
+}
+
+body {
+  background: #f8fafc;
+  color: #1a1a1a;
+  font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, Arial, sans-serif;
+}
