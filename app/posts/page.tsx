@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { MatchPost, FieldStatus, Level } from '@/lib/types'
@@ -17,7 +17,7 @@ const LEVEL_LABELS: Record<Level, string> = {
   'C': 'C 未経験5人以上',
 }
 
-export default function PostsPage() {
+function PostsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -196,5 +196,13 @@ export default function PostsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function PostsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-16 text-gray-400">読み込み中...</div>}>
+      <PostsContent />
+    </Suspense>
   )
 }
