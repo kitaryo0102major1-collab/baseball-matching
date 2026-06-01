@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { MatchPost } from '@/lib/types'
 import FieldBadge from '@/components/FieldBadge'
 import LevelBadge from '@/components/LevelBadge'
+import ChatArea from '@/components/ChatArea'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -168,6 +169,9 @@ export default async function PostDetailPage({ params }: Props) {
           ← 一覧に戻る
         </Link>
       </div>
+
+      {/* チャット */}
+      <ChatArea postId={post.id} />
     </div>
   )
 }

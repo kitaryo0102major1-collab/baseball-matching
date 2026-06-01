@@ -20,6 +20,20 @@ export interface MatchPost {
   created_at: string
 }
 
+export interface Chat {
+  id: string
+  post_id: string
+  team_name: string
+  message: string
+  created_at: string
+}
+
+export interface ChatInsert {
+  post_id: string
+  team_name: string
+  message: string
+}
+
 export interface MatchPostInsert {
   title: string
   field_status: FieldStatus

@@ -37,3 +37,29 @@ create policy "anyone can read posts"
 create policy "anyone can insert posts"
   on match_posts for insert
   with check (true);
+
+-- chats テーブル
+create table if not exists chats (
+  id         uuid primary key default gen_random_uuid(),
+  post_id    uuid not null references match_posts(id) on delete cascade,
+  team_name  text not null,
+  message    text not null,
+  created_at timestamptz not null default now()
+);
+
+-- インデックス
+create index if not exists chats_post_id_idx on chats (post_id, created_at asc);
+
+-- RLS: 誰でも読み書き可
+alter table chats enable row level security;
+
+create policy "anyone can read chats"
+  on chats for select
+  using (true);
+
+create policy "anyone can insert chats"
+  on chats for insert
+  with check (true);
+
+-- リアルタイム配信を有効化
+alter publication supabase_realtime add table chats;
