@@ -64,11 +64,11 @@ export default function TopPage() {
           登録不要・無料で使える
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight">
-          草野球の対戦相手、<br />
-          <span className="text-[#1D9E75]">見つかる。</span>
+          草野球マッチで<br />
+          <span className="text-[#1D9E75]">対戦相手を見つけよう。</span>
         </h1>
         <p className="text-gray-500 text-base sm:text-lg max-w-md mx-auto">
-          グラウンドの有無で相手を探したり、練習試合の募集を簡単に投稿できます。
+          草野球マッチは、グラウンドの有無で対戦相手を探したり、練習試合の募集を簡単に投稿できる無料サービスです。
         </p>
       </section>
 
