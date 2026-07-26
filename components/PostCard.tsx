@@ -1,7 +1,11 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
-import type { MatchPost } from '@/lib/types'
+import type { MatchPost, PostStatus } from '@/lib/types'
 import FieldBadge from './FieldBadge'
 import LevelBadge from './LevelBadge'
+import MatchStatus from './MatchStatus'
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
@@ -18,6 +22,9 @@ interface Props {
 }
 
 export default function PostCard({ post }: Props) {
+  const [status, setStatus] = useState<PostStatus>(post.status)
+  const isDecided = status === '決定済み'
+
   const timeRange =
     post.start_time || post.end_time
       ? `${formatTime(post.start_time) ?? '?'}〜${formatTime(post.end_time) ?? '?'}`
@@ -25,8 +32,13 @@ export default function PostCard({ post }: Props) {
 
   return (
     <Link href={`/posts/${post.id}`} className="block group">
-      <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-[#1D9E75]/40 transition-all">
-        <div className="flex flex-wrap gap-1.5 mb-2">
+      <div
+        className={`bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-[#1D9E75]/40 transition-all ${
+          isDecided ? 'opacity-60' : ''
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <MatchStatus postId={post.id} initialStatus={status} size="sm" onStatusChange={setStatus} />
           <FieldBadge status={post.field_status} size="sm" />
           <LevelBadge level={post.level} size="sm" />
         </div>

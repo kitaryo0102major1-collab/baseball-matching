@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { MatchPost } from '@/lib/types'
 import FieldBadge from '@/components/FieldBadge'
 import LevelBadge from '@/components/LevelBadge'
+import MatchStatus from '@/components/MatchStatus'
 import ChatArea from '@/components/ChatArea'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -55,6 +56,9 @@ export default async function PostDetailPage({ params }: Props) {
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {/* ヘッダー */}
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+          <div className="mb-3">
+            <MatchStatus postId={post.id} initialStatus={post.status} size="md" />
+          </div>
           <div className="flex flex-wrap gap-2 mb-3">
             <FieldBadge status={post.field_status} />
             <LevelBadge level={post.level} />

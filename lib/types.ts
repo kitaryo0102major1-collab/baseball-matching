@@ -1,5 +1,6 @@
 export type FieldStatus = 'ok' | 'ng'
 export type Level = 'A+' | 'A' | 'B' | 'C'
+export type PostStatus = '募集中' | '決定済み'
 
 export interface MatchPost {
   id: string
@@ -9,6 +10,7 @@ export interface MatchPost {
   area: string | null
   prefecture: string | null
   level: Level
+  status: PostStatus
   game_date: string
   start_time: string | null
   end_time: string | null

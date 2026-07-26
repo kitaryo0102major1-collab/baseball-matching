@@ -7,6 +7,7 @@ create table if not exists match_posts (
   area          text,
   prefecture    text,
   level         text not null check (level in ('A+', 'A', 'B', 'C')),
+  status        text not null default '募集中' check (status in ('募集中', '決定済み')),
   game_date     date not null,
   start_time    time,
   end_time      time,
@@ -22,6 +23,9 @@ create table if not exists match_posts (
 -- 既存テーブルへのマイグレーション（prefecture カラム追加。既存投稿は NULL 許容）
 alter table match_posts add column if not exists prefecture text;
 
+-- 既存テーブルへのマイグレーション（status カラム追加。新規投稿はデフォルトで '募集中'）
+alter table match_posts add column if not exists status text not null default '募集中' check (status in ('募集中', '決定済み'));
+
 -- 新着順インデックス
 create index if not exists match_posts_created_at_idx on match_posts (created_at desc);
 
@@ -31,6 +35,7 @@ create index if not exists match_posts_area_idx on match_posts (area);
 create index if not exists match_posts_prefecture_idx on match_posts (prefecture);
 create index if not exists match_posts_level_idx on match_posts (level);
 create index if not exists match_posts_game_date_idx on match_posts (game_date);
+create index if not exists match_posts_status_idx on match_posts (status);
 
 -- RLS（Row Level Security）: 誰でも読み書き可（登録不要のため）
 alter table match_posts enable row level security;
@@ -41,6 +46,12 @@ create policy "anyone can read posts"
 
 create policy "anyone can insert posts"
   on match_posts for insert
+  with check (true);
+
+-- ステータス変更（「試合が決まりました」ボタン）はログイン不要のため、誰でも更新可能
+create policy "anyone can update posts"
+  on match_posts for update
+  using (true)
   with check (true);
 
 -- chats テーブル

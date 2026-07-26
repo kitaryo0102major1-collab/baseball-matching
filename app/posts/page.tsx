@@ -104,28 +104,14 @@ function PostsContent() {
 
         {filterOpen && (
           <div className="px-5 pb-4 border-t border-gray-100">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
-              {/* グラウンド */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">グラウンド</label>
-                <select
-                  value={field}
-                  onChange={(e) => setField(e.target.value as '' | FieldStatus)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
-                >
-                  <option value="">すべて</option>
-                  <option value="ok">あり</option>
-                  <option value="ng">なし</option>
-                </select>
-              </div>
-
-              {/* 都道府県 */}
+            <div className="mt-4 space-y-4">
+              {/* 都道府県（単独・目立つ配置） */}
               <div>
                 <label className="block text-xs text-gray-500 mb-1">都道府県</label>
                 <select
                   value={prefecture}
                   onChange={(e) => setPrefecture(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-3 text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
                 >
                   <option value="">すべて</option>
                   {PREFECTURES.map((p) => (
@@ -134,45 +120,61 @@ function PostsContent() {
                 </select>
               </div>
 
-              {/* エリア */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">エリア</label>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
-                >
-                  <option value="">すべて</option>
-                  {AREAS.map((a) => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
-              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* グラウンド */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">グラウンド</label>
+                  <select
+                    value={field}
+                    onChange={(e) => setField(e.target.value as '' | FieldStatus)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+                  >
+                    <option value="">すべて</option>
+                    <option value="ok">あり</option>
+                    <option value="ng">なし</option>
+                  </select>
+                </div>
 
-              {/* 日付 */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">日付</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
-                />
-              </div>
+                {/* エリア */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">エリア</label>
+                  <select
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+                  >
+                    <option value="">すべて</option>
+                    {AREAS.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
 
-              {/* レベル */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">レベル</label>
-                <select
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value as '' | Level)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
-                >
-                  <option value="">すべて</option>
-                  {LEVELS.map((l) => (
-                    <option key={l} value={l}>{LEVEL_LABELS[l]}</option>
-                  ))}
-                </select>
+                {/* 日付 */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">日付</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+                  />
+                </div>
+
+                {/* レベル */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">レベル</label>
+                  <select
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value as '' | Level)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+                  >
+                    <option value="">すべて</option>
+                    {LEVELS.map((l) => (
+                      <option key={l} value={l}>{LEVEL_LABELS[l]}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -209,9 +211,11 @@ function PostsContent() {
         <div>
           <p className="text-sm text-gray-400 mb-4">{posts.length}件の募集</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+            {[...posts]
+              .sort((a, b) => Number(a.status === '決定済み') - Number(b.status === '決定済み'))
+              .map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
           </div>
         </div>
       )}
