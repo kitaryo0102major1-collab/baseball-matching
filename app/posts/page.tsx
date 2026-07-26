@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { MatchPost, FieldStatus, Level } from '@/lib/types'
+import { PREFECTURES } from '@/lib/prefectures'
 import PostCard from '@/components/PostCard'
 import Link from 'next/link'
 
@@ -29,6 +30,7 @@ function PostsContent() {
     (searchParams.get('field') as FieldStatus) ?? ''
   )
   const [area, setArea] = useState(searchParams.get('area') ?? '')
+  const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') ?? '')
   const [date, setDate] = useState(searchParams.get('date') ?? '')
   const [level, setLevel] = useState<'' | Level>(
     (searchParams.get('level') as Level) ?? ''
@@ -43,13 +45,14 @@ function PostsContent() {
 
     if (field) query = query.eq('field_status', field)
     if (area) query = query.eq('area', area)
+    if (prefecture) query = query.eq('prefecture', prefecture)
     if (date) query = query.eq('game_date', date)
     if (level) query = query.eq('level', level)
 
     const { data, error } = await query
     if (!error && data) setPosts(data as MatchPost[])
     setLoading(false)
-  }, [field, area, date, level])
+  }, [field, area, prefecture, date, level])
 
   useEffect(() => {
     fetchPosts()
@@ -59,6 +62,7 @@ function PostsContent() {
     const params = new URLSearchParams()
     if (field) params.set('field', field)
     if (area) params.set('area', area)
+    if (prefecture) params.set('prefecture', prefecture)
     if (date) params.set('date', date)
     if (level) params.set('level', level)
     router.replace(`/posts?${params.toString()}`)
@@ -68,6 +72,7 @@ function PostsContent() {
   function resetFilter() {
     setField('')
     setArea('')
+    setPrefecture('')
     setDate('')
     setLevel('')
     router.replace('/posts')
@@ -99,7 +104,7 @@ function PostsContent() {
 
         {filterOpen && (
           <div className="px-5 pb-4 border-t border-gray-100">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
               {/* グラウンド */}
               <div>
                 <label className="block text-xs text-gray-500 mb-1">グラウンド</label>
@@ -111,6 +116,21 @@ function PostsContent() {
                   <option value="">すべて</option>
                   <option value="ok">あり</option>
                   <option value="ng">なし</option>
+                </select>
+              </div>
+
+              {/* 都道府県 */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">都道府県</label>
+                <select
+                  value={prefecture}
+                  onChange={(e) => setPrefecture(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+                >
+                  <option value="">すべて</option>
+                  {PREFECTURES.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
                 </select>
               </div>
 

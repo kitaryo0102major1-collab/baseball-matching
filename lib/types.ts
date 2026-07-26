@@ -7,6 +7,7 @@ export interface MatchPost {
   field_status: FieldStatus
   venue_name: string | null
   area: string | null
+  prefecture: string | null
   level: Level
   game_date: string
   start_time: string | null
@@ -39,6 +40,7 @@ export interface MatchPostInsert {
   field_status: FieldStatus
   venue_name?: string | null
   area?: string | null
+  prefecture: string
   level: Level
   game_date: string
   start_time?: string | null

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { FieldStatus, Level, MatchPostInsert } from '@/lib/types'
+import { PREFECTURES } from '@/lib/prefectures'
 
 const AREAS = ['北海道', '東北', '関東', '東海', '北陸', '近畿', '中国', '四国', '九州・沖縄']
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
@@ -74,6 +75,7 @@ export default function NewPostPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [title, setTitle] = useState('')
+  const [prefecture, setPrefecture] = useState('')
   const [fieldStatus, setFieldStatus] = useState<FieldStatus | ''>('')
   const [venueName, setVenueName] = useState('')
   const [area, setArea] = useState('')
@@ -91,6 +93,7 @@ export default function NewPostPage() {
   function validate() {
     const e: Record<string, string> = {}
     if (!title.trim()) e.title = 'タイトルは必須です'
+    if (!prefecture) e.prefecture = '都道府県を選択してください'
     if (!fieldStatus) e.fieldStatus = 'グラウンドの有無を選択してください'
     if (fieldStatus === 'ok' && !venueName.trim()) e.venueName = 'グラウンド名は必須です（グラウンドありの場合）'
     if (!gameDate) e.gameDate = '試合日は必須です'
@@ -113,6 +116,7 @@ export default function NewPostPage() {
     setSubmitting(true)
     const payload: MatchPostInsert = {
       title: title.trim(),
+      prefecture,
       field_status: fieldStatus as FieldStatus,
       venue_name: venueName.trim() || null,
       area: area || null,
@@ -165,6 +169,22 @@ export default function NewPostPage() {
             className={inputClass(!!errors.title)}
           />
           {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
+        </div>
+
+        {/* 都道府県 */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <FormLabel required>都道府県</FormLabel>
+          <select
+            value={prefecture}
+            onChange={(e) => setPrefecture(e.target.value)}
+            className={inputClass(!!errors.prefecture)}
+          >
+            <option value="">選択してください</option>
+            {PREFECTURES.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          {errors.prefecture && <p className="text-xs text-red-500 mt-1">{errors.prefecture}</p>}
         </div>
 
         {/* グラウンド */}

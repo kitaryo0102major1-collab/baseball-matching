@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { PREFECTURES } from '@/lib/prefectures'
 
 const HOW_TO_STEPS = [
   {
@@ -56,6 +58,17 @@ function HowToAccordion() {
 }
 
 export default function TopPage() {
+  const router = useRouter()
+  const [prefecture, setPrefecture] = useState('')
+
+  function handlePrefectureChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value
+    setPrefecture(value)
+    if (value) {
+      router.push(`/posts?prefecture=${encodeURIComponent(value)}`)
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-12">
       {/* Hero */}
@@ -74,33 +87,25 @@ export default function TopPage() {
 
       {/* CTA Cards */}
       <section className="grid sm:grid-cols-2 gap-4">
-        <Link
-          href="/posts?field=ok"
-          className="group block bg-[#E1F5EE] border-2 border-[#0F6E56]/30 hover:border-[#0F6E56] rounded-2xl p-6 transition-all hover:shadow-md"
-        >
-          <div className="text-4xl mb-3">🏟️</div>
-          <h2 className="font-bold text-[#0F6E56] text-lg mb-1">グラウンドあり で探す</h2>
-          <p className="text-sm text-[#0F6E56]/70">球場・グラウンドを確保しているチームを探す</p>
-          <div className="mt-4 text-sm font-semibold text-[#0F6E56] group-hover:translate-x-1 transition-transform inline-block">
-            一覧を見る →
-          </div>
-        </Link>
-
-        <Link
-          href="/posts?field=ng"
-          className="group block bg-[#FCEBEB] border-2 border-[#A32D2D]/30 hover:border-[#A32D2D] rounded-2xl p-6 transition-all hover:shadow-md"
-        >
-          <div className="text-4xl mb-3">📍</div>
-          <h2 className="font-bold text-[#A32D2D] text-lg mb-1">グラウンドなし で探す</h2>
-          <p className="text-sm text-[#A32D2D]/70">場所を持っている相手チームを探したい</p>
-          <div className="mt-4 text-sm font-semibold text-[#A32D2D] group-hover:translate-x-1 transition-transform inline-block">
-            一覧を見る →
-          </div>
-        </Link>
+        <div className="bg-[#E1F5EE] border-2 border-[#0F6E56]/30 rounded-2xl p-6">
+          <div className="text-4xl mb-3">🗾</div>
+          <h2 className="font-bold text-[#0F6E56] text-lg mb-1">都道府県で探す</h2>
+          <p className="text-sm text-[#0F6E56]/70 mb-4">エリアから対戦相手の募集を探す</p>
+          <select
+            value={prefecture}
+            onChange={handlePrefectureChange}
+            className="w-full bg-white border border-[#0F6E56]/30 rounded-lg px-3 py-2.5 text-sm font-medium text-[#0F6E56] focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
+          >
+            <option value="">都道府県を選択</option>
+            {PREFECTURES.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
 
         <Link
           href="/posts/new"
-          className="group block sm:col-span-2 bg-[#1D9E75] hover:bg-[#0F6E56] rounded-2xl p-6 transition-all hover:shadow-md text-center"
+          className="group flex flex-col items-center justify-center bg-[#1D9E75] hover:bg-[#0F6E56] rounded-2xl p-6 transition-all hover:shadow-md text-center"
         >
           <div className="text-4xl mb-3">📢</div>
           <h2 className="font-bold text-white text-xl mb-1">対戦相手を募集する</h2>

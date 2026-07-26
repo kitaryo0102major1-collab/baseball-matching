@@ -77,6 +77,11 @@ export default async function PostDetailPage({ params }: Props) {
                 {startTime ?? '?'}〜{endTime ?? '?'}
               </InfoRow>
             )}
+            {post.prefecture && (
+              <InfoRow icon="📍" label="都道府県">
+                {post.prefecture}
+              </InfoRow>
+            )}
             {post.area && (
               <InfoRow icon="🗾" label="エリア">
                 {post.area}

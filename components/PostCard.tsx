@@ -39,10 +39,10 @@ export default function PostCard({ post }: Props) {
             <span>{formatDate(post.game_date)}</span>
             {timeRange && <span className="text-gray-400">｜ {timeRange}</span>}
           </div>
-          {(post.area || post.venue_name) && (
+          {(post.prefecture || post.area || post.venue_name) && (
             <div className="flex items-center gap-1.5">
               <span>📍</span>
-              <span>{[post.area, post.venue_name].filter(Boolean).join(' / ')}</span>
+              <span>{[post.prefecture, post.area, post.venue_name].filter(Boolean).join(' / ')}</span>
             </div>
           )}
         </div>
