@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase'
 import type { FieldStatus, Level, MatchPostInsert } from '@/lib/types'
 import { PREFECTURES } from '@/lib/prefectures'
 
-const AREAS = ['北海道', '東北', '関東', '東海', '北陸', '近畿', '中国', '四国', '九州・沖縄']
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
 
 const LEVEL_DETAILS: Record<Level, string> = {
@@ -78,7 +77,7 @@ export default function NewPostPage() {
   const [prefecture, setPrefecture] = useState('')
   const [fieldStatus, setFieldStatus] = useState<FieldStatus | ''>('')
   const [venueName, setVenueName] = useState('')
-  const [area, setArea] = useState('')
+  const [areaDetail, setAreaDetail] = useState('')
   const [level, setLevel] = useState<Level | ''>('')
   const [gameDate, setGameDate] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -119,7 +118,7 @@ export default function NewPostPage() {
       prefecture,
       field_status: fieldStatus as FieldStatus,
       venue_name: venueName.trim() || null,
-      area: area || null,
+      area_detail: areaDetail.trim() || null,
       level: level as Level,
       game_date: gameDate,
       start_time: startTime || null,
@@ -187,6 +186,18 @@ export default function NewPostPage() {
           {errors.prefecture && <p className="text-xs text-red-500 mt-1">{errors.prefecture}</p>}
         </div>
 
+        {/* エリア詳細 */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <FormLabel>エリア詳細（任意）</FormLabel>
+          <input
+            type="text"
+            value={areaDetail}
+            onChange={(e) => setAreaDetail(e.target.value)}
+            placeholder="例：船橋市周辺、〇〇駅から車で15分 など"
+            className={inputClass()}
+          />
+        </div>
+
         {/* グラウンド */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <FormLabel required>グラウンドの有無</FormLabel>
@@ -218,17 +229,6 @@ export default function NewPostPage() {
           {fieldStatus === 'ok' && (
             <div className="mt-4 space-y-3 pt-4 border-t border-gray-100">
               <div>
-                <FormLabel required>エリア</FormLabel>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className={inputClass()}
-                >
-                  <option value="">選択してください</option>
-                  {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
-              <div>
                 <FormLabel required>グラウンド名</FormLabel>
                 <input
                   type="text"
@@ -238,23 +238,6 @@ export default function NewPostPage() {
                   className={inputClass(!!errors.venueName)}
                 />
                 {errors.venueName && <p className="text-xs text-red-500 mt-1">{errors.venueName}</p>}
-              </div>
-            </div>
-          )}
-
-          {/* グラウンドなしの場合 */}
-          {fieldStatus === 'ng' && (
-            <div className="mt-4 space-y-3 pt-4 border-t border-gray-100">
-              <div>
-                <FormLabel>希望エリア（任意）</FormLabel>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className={inputClass()}
-                >
-                  <option value="">こだわらない</option>
-                  {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
               </div>
             </div>
           )}

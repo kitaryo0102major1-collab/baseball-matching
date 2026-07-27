@@ -8,7 +8,6 @@ import { PREFECTURES } from '@/lib/prefectures'
 import PostCard from '@/components/PostCard'
 import Link from 'next/link'
 
-const AREAS = ['北海道', '東北', '関東', '東海', '北陸', '近畿', '中国', '四国', '九州・沖縄']
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
 
 const LEVEL_LABELS: Record<Level, string> = {
@@ -29,7 +28,6 @@ function PostsContent() {
   const [field, setField] = useState<'' | FieldStatus>(
     (searchParams.get('field') as FieldStatus) ?? ''
   )
-  const [area, setArea] = useState(searchParams.get('area') ?? '')
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') ?? '')
   const [date, setDate] = useState(searchParams.get('date') ?? '')
   const [level, setLevel] = useState<'' | Level>(
@@ -44,7 +42,6 @@ function PostsContent() {
       .order('created_at', { ascending: false })
 
     if (field) query = query.eq('field_status', field)
-    if (area) query = query.eq('area', area)
     if (prefecture) query = query.eq('prefecture', prefecture)
     if (date) query = query.eq('game_date', date)
     if (level) query = query.eq('level', level)
@@ -52,7 +49,7 @@ function PostsContent() {
     const { data, error } = await query
     if (!error && data) setPosts(data as MatchPost[])
     setLoading(false)
-  }, [field, area, prefecture, date, level])
+  }, [field, prefecture, date, level])
 
   useEffect(() => {
     fetchPosts()
@@ -61,7 +58,6 @@ function PostsContent() {
   function applyFilter() {
     const params = new URLSearchParams()
     if (field) params.set('field', field)
-    if (area) params.set('area', area)
     if (prefecture) params.set('prefecture', prefecture)
     if (date) params.set('date', date)
     if (level) params.set('level', level)
@@ -71,7 +67,6 @@ function PostsContent() {
 
   function resetFilter() {
     setField('')
-    setArea('')
     setPrefecture('')
     setDate('')
     setLevel('')
@@ -120,7 +115,7 @@ function PostsContent() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {/* グラウンド */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">グラウンド</label>
@@ -132,21 +127,6 @@ function PostsContent() {
                     <option value="">すべて</option>
                     <option value="ok">あり</option>
                     <option value="ng">なし</option>
-                  </select>
-                </div>
-
-                {/* エリア */}
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">エリア</label>
-                  <select
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40"
-                  >
-                    <option value="">すべて</option>
-                    {AREAS.map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
                   </select>
                 </div>
 

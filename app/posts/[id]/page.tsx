@@ -84,11 +84,7 @@ export default async function PostDetailPage({ params }: Props) {
             {post.prefecture && (
               <InfoRow icon="📍" label="都道府県">
                 {post.prefecture}
-              </InfoRow>
-            )}
-            {post.area && (
-              <InfoRow icon="🗾" label="エリア">
-                {post.area}
+                {post.area_detail && `・${post.area_detail}`}
               </InfoRow>
             )}
             {post.venue_name && (

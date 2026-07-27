@@ -4,7 +4,7 @@ create table if not exists match_posts (
   title         text not null,
   field_status  text not null check (field_status in ('ok', 'ng')),
   venue_name    text,
-  area          text,
+  area_detail   text,
   prefecture    text,
   level         text not null check (level in ('A+', 'A', 'B', 'C')),
   status        text not null default '募集中' check (status in ('募集中', '決定済み')),
@@ -31,7 +31,6 @@ create index if not exists match_posts_created_at_idx on match_posts (created_at
 
 -- 絞り込みインデックス
 create index if not exists match_posts_field_status_idx on match_posts (field_status);
-create index if not exists match_posts_area_idx on match_posts (area);
 create index if not exists match_posts_prefecture_idx on match_posts (prefecture);
 create index if not exists match_posts_level_idx on match_posts (level);
 create index if not exists match_posts_game_date_idx on match_posts (game_date);
