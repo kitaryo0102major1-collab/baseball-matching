@@ -57,7 +57,7 @@ export default async function PostDetailPage({ params }: Props) {
         {/* ヘッダー */}
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
           <div className="mb-3">
-            <MatchStatus postId={post.id} initialStatus={post.status} size="md" />
+            <MatchStatus postId={post.id} initialStatus={post.status} size="md" interactive />
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
             <FieldBadge status={post.field_status} />

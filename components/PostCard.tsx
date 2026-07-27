@@ -1,8 +1,5 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
-import type { MatchPost, PostStatus } from '@/lib/types'
+import type { MatchPost } from '@/lib/types'
 import FieldBadge from './FieldBadge'
 import LevelBadge from './LevelBadge'
 import MatchStatus from './MatchStatus'
@@ -22,8 +19,7 @@ interface Props {
 }
 
 export default function PostCard({ post }: Props) {
-  const [status, setStatus] = useState<PostStatus>(post.status)
-  const isDecided = status === '決定済み'
+  const isDecided = post.status === '決定済み'
 
   const timeRange =
     post.start_time || post.end_time
@@ -38,7 +34,7 @@ export default function PostCard({ post }: Props) {
         }`}
       >
         <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          <MatchStatus postId={post.id} initialStatus={status} size="sm" onStatusChange={setStatus} />
+          <MatchStatus postId={post.id} initialStatus={post.status} size="sm" />
           <FieldBadge status={post.field_status} size="sm" />
           <LevelBadge level={post.level} size="sm" />
         </div>
