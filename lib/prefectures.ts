@@ -12,3 +12,5 @@ export const PREFECTURES = [
 ] as const
 
 export type Prefecture = (typeof PREFECTURES)[number]
+
+export const POPULAR_PREFECTURES = ['東京都', '神奈川県', '大阪府', '愛知県', '埼玉県']

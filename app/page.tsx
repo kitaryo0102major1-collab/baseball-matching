@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { MatchPost } from '@/lib/types'
 import PostCard from '@/components/PostCard'
-
-const POPULAR_PREFECTURES = ['東京都', '神奈川県', '大阪府', '愛知県', '埼玉県']
+import { POPULAR_PREFECTURES } from '@/lib/prefectures'
 
 const HOW_TO_STEPS = [
   {
