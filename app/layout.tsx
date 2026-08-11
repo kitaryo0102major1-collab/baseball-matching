@@ -1,6 +1,14 @@
 import type { Metadata } from 'next'
+import { Zen_Kaku_Gothic_New } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/Header'
+import BottomTabBar from '@/components/BottomTabBar'
+
+const zenKaku = Zen_Kaku_Gothic_New({
+  weight: ['400', '500', '700', '900'],
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 const SITE_URL = 'https://baseball-matching-eight.vercel.app'
 
@@ -41,12 +49,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja" className="h-full">
-      <body className="min-h-full flex flex-col bg-slate-50">
+      <body className={`${zenKaku.className} min-h-full flex flex-col`}>
         <Header />
         <main className="flex-1">{children}</main>
-        <footer className="bg-gray-800 text-gray-400 text-center py-6 text-sm mt-auto">
+        <footer className="bg-[var(--bg)] text-[var(--ink-mute)] text-center py-4 text-xs mt-auto">
           © 2025 草野球マッチ
         </footer>
+        <BottomTabBar />
       </body>
     </html>
   )

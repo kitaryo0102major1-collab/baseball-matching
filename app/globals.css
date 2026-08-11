@@ -3,10 +3,19 @@
 :root {
   --color-main: #1D9E75;
   --color-main-dark: #0F6E56;
+
+  --bg:        #F7F4EC;
+  --surface:   #FFFDF7;
+  --line:      #E2DCCB;
+  --ink:       #1B1D1A;
+  --ink-sub:   #5C5A52;
+  --ink-mute:  #8A8577;
+  --green:     #14664A;
+  --green-bg:  #E4EDE7;
+  --clay:      #C2622F;
 }
 
 body {
-  background: #f8fafc;
-  color: #1a1a1a;
-  font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
 }
