@@ -85,6 +85,21 @@ export default function TopPage() {
         </p>
       </section>
 
+      {/* 簡単募集の入り口 */}
+      <section>
+        <Link
+          href="/posts/quick"
+          className="group flex items-center gap-4 bg-white border-2 border-[#1D9E75] rounded-2xl p-5 hover:shadow-md transition-all"
+        >
+          <div className="text-4xl shrink-0">💬</div>
+          <div className="flex-1">
+            <p className="font-bold text-[#1D9E75] text-lg">1分かからずできる簡単募集</p>
+            <p className="text-sm text-gray-500 mt-0.5">チャット形式の質問に答えるだけで投稿が完成します</p>
+          </div>
+          <div className="text-[#1D9E75] group-hover:translate-x-1 transition-transform text-xl shrink-0">→</div>
+        </Link>
+      </section>
+
       {/* CTA Cards */}
       <section className="grid sm:grid-cols-2 gap-4">
         <div className="bg-[#E1F5EE] border-2 border-[#0F6E56]/30 rounded-2xl p-6">
