@@ -50,7 +50,7 @@ export default function PostCard({ post }: Props) {
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-            <MatchStatus postId={post.id} initialStatus={post.status} size="xs" />
+            <MatchStatus status={post.status} size="xs" />
             <FieldBadge status={post.field_status} size="xs" />
             <LevelBadge level={post.level} size="xs" />
           </div>

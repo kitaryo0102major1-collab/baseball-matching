@@ -3,6 +3,8 @@ import type { MatchPost } from '@/lib/types'
 import FieldBadge from '@/components/FieldBadge'
 import LevelBadge from '@/components/LevelBadge'
 import MatchStatus from '@/components/MatchStatus'
+import MatchStatusSegment from '@/components/MatchStatusSegment'
+import DetailContactCta from '@/components/DetailContactCta'
 import ChatArea from '@/components/ChatArea'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -14,14 +16,11 @@ const LEVEL_DESCRIPTIONS: Record<string, string> = {
   'C': '5人以上野球未経験者',
 }
 
-function formatDate(dateStr: string) {
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
+function formatDateWithWeekday(dateStr: string) {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAY_LABELS[d.getDay()]}）`
 }
 
 function formatTime(t: string | null) {
@@ -35,170 +34,132 @@ interface Props {
 
 export default async function PostDetailPage({ params }: Props) {
   const { id } = await params
-  const { data, error } = await supabase
-    .from('match_posts')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const { data, error } = await supabase.from('match_posts').select('*').eq('id', id).single()
 
   if (error || !data) notFound()
 
   const post = data as MatchPost
   const startTime = formatTime(post.start_time)
   const endTime = formatTime(post.end_time)
+  const timeText = startTime ? `${startTime}〜${endTime ?? '?'}` : '時間未定'
+
+  const today = new Date().toISOString().slice(0, 10)
+  const isPastDate = post.game_date < today
+
+  const placeLine = [post.prefecture, post.area_detail].filter(Boolean).join(' ')
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <Link href="/posts" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-[#1D9E75] mb-6 transition-colors">
-        ← 一覧に戻る
-      </Link>
-
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        {/* ヘッダー */}
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-          <div className="mb-3">
-            <MatchStatus postId={post.id} initialStatus={post.status} size="md" interactive />
-          </div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            <FieldBadge status={post.field_status} />
-            <LevelBadge level={post.level} />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">{post.title}</h1>
-          <p className="text-xs text-gray-400 mt-2">
-            投稿日：{new Date(post.created_at).toLocaleDateString('ja-JP')}
-          </p>
-        </div>
-
-        {/* 基本情報 */}
-        <div className="px-6 py-5 border-b border-gray-100 space-y-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">基本情報</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <InfoRow icon="📅" label="試合日">
-              {formatDate(post.game_date)}
-            </InfoRow>
-            {(startTime || endTime) && (
-              <InfoRow icon="🕐" label="時間">
-                {startTime ?? '?'}〜{endTime ?? '?'}
-              </InfoRow>
-            )}
-            {post.prefecture && (
-              <InfoRow icon="📍" label="都道府県">
-                {post.prefecture}
-                {post.area_detail && `・${post.area_detail}`}
-              </InfoRow>
-            )}
-            {post.venue_name && (
-              <InfoRow icon="🏟️" label="グラウンド名">
-                {post.venue_name}
-              </InfoRow>
-            )}
-            <InfoRow icon="⭐" label="レベル">
-              <span className="font-medium">{post.level}</span>
-              <span className="text-gray-400 text-sm ml-2">— {LEVEL_DESCRIPTIONS[post.level]}</span>
-            </InfoRow>
-          </div>
-        </div>
-
-        {/* コメント */}
-        {post.description && (
-          <div className="px-6 py-5 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">募集内容</h2>
-            <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{post.description}</p>
-          </div>
-        )}
-
-        {/* 連絡先 */}
-        {(post.contact_email || post.contact_phone || post.contact_other) && (
-          <div className="px-6 py-5 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">連絡先</h2>
-            <div className="space-y-2">
-              {post.contact_email && (
-                <ContactRow icon="✉️" label="メール">
-                  <a href={`mailto:${post.contact_email}`} className="text-[#1D9E75] hover:underline">
-                    {post.contact_email}
-                  </a>
-                </ContactRow>
-              )}
-              {post.contact_phone && (
-                <ContactRow icon="📞" label="電話">
-                  <a href={`tel:${post.contact_phone}`} className="text-[#1D9E75] hover:underline">
-                    {post.contact_phone}
-                  </a>
-                </ContactRow>
-              )}
-              {post.contact_other && (
-                <ContactRow icon="💬" label="その他">
-                  {post.contact_other}
-                </ContactRow>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* SNS */}
-        {(post.sns_x || post.sns_instagram) && (
-          <div className="px-6 py-5">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">チームSNS</h2>
-            <div className="space-y-2">
-              {post.sns_x && (
-                <ContactRow icon="𝕏" label="X (Twitter)">
-                  <a
-                    href={`https://x.com/${post.sns_x.replace(/^@/, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#1D9E75] hover:underline"
-                  >
-                    @{post.sns_x.replace(/^@/, '')}
-                  </a>
-                </ContactRow>
-              )}
-              {post.sns_instagram && (
-                <ContactRow icon="📸" label="Instagram">
-                  <a
-                    href={`https://instagram.com/${post.sns_instagram.replace(/^@/, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#1D9E75] hover:underline"
-                  >
-                    @{post.sns_instagram.replace(/^@/, '')}
-                  </a>
-                </ContactRow>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 text-center">
-        <Link href="/posts" className="text-sm text-gray-500 hover:text-[#1D9E75] transition-colors">
+    <div className="max-w-5xl mx-auto px-4 py-8 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
+      <div className="max-w-2xl lg:max-w-none">
+        <Link
+          href="/posts"
+          className="inline-flex items-center gap-1 text-sm text-[var(--ink-mute)] hover:text-[var(--green)] mb-6 transition-colors"
+        >
           ← 一覧に戻る
         </Link>
+
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--line)] overflow-hidden">
+          {/* ヘッダー */}
+          <div className="px-6 pt-6 pb-4 border-b border-[var(--line)]">
+            <div className="flex flex-wrap gap-2 mb-3">
+              <MatchStatus status={post.status} size="md" />
+              <FieldBadge status={post.field_status} />
+              <LevelBadge level={post.level} />
+            </div>
+            <h1 className="text-[22px] font-black leading-relaxed text-[var(--ink)]">{post.title}</h1>
+          </div>
+
+          {/* 状態切り替え */}
+          <div className="px-6 py-5 border-b border-[var(--line)]">
+            <MatchStatusSegment postId={post.id} initialStatus={post.status} />
+            <Link
+              href={`/posts/${post.id}/edit`}
+              className="inline-block mt-3 text-[13px] font-bold text-[var(--clay)]"
+            >
+              募集内容を修正する →
+            </Link>
+          </div>
+
+          {/* 基本情報 */}
+          <div className="px-6 py-2">
+            {isPastDate && (
+              <InfoRow label="状態">
+                <span className="font-bold text-[#A32D2D]">試合日を過ぎたため一覧には表示されていません</span>
+              </InfoRow>
+            )}
+            <InfoRow label="日時">
+              {formatDateWithWeekday(post.game_date)} {timeText}
+            </InfoRow>
+            {(placeLine || post.venue_name) && (
+              <InfoRow label="場所">
+                {placeLine}
+                {post.venue_name && (
+                  <>
+                    <br />
+                    {post.venue_name}
+                  </>
+                )}
+              </InfoRow>
+            )}
+            <InfoRow label="レベル">
+              <span className="font-medium">{post.level}</span>
+              <span className="text-[var(--ink-mute)] text-sm ml-2">— {LEVEL_DESCRIPTIONS[post.level]}</span>
+            </InfoRow>
+            {(post.sns_x || post.sns_instagram) && (
+              <InfoRow label="SNS">
+                <div className="space-y-1">
+                  {post.sns_x && (
+                    <a
+                      href={post.sns_x}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-[var(--green)] hover:underline break-all"
+                    >
+                      X：{post.sns_x}
+                    </a>
+                  )}
+                  {post.sns_instagram && (
+                    <a
+                      href={post.sns_instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-[var(--green)] hover:underline break-all"
+                    >
+                      Instagram：{post.sns_instagram}
+                    </a>
+                  )}
+                </div>
+              </InfoRow>
+            )}
+          </div>
+
+          {/* コメント */}
+          {post.description && (
+            <div className="px-6 pb-6">
+              <div className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-4">
+                <h2 className="text-sm font-bold text-[var(--ink)] mb-2">募集コメント</h2>
+                <p className="text-[var(--ink-sub)] whitespace-pre-wrap leading-relaxed text-sm">
+                  {post.description}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* チャット */}
+        <ChatArea postId={post.id} />
       </div>
 
-      {/* チャット */}
-      <ChatArea postId={post.id} />
+      <DetailContactCta post={post} />
     </div>
   )
 }
 
-function InfoRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="text-lg w-6 shrink-0">{icon}</span>
-      <div>
-        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-        <div className="text-gray-800 text-sm">{children}</div>
-      </div>
-    </div>
-  )
-}
-
-function ContactRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="text-base w-6 text-center">{icon}</span>
-      <span className="text-gray-400 w-16 shrink-0">{label}</span>
-      <div className="text-gray-800">{children}</div>
+    <div className="grid grid-cols-[76px_1fr] gap-2 py-3 border-b border-[var(--line)] last:border-b-0">
+      <span className="text-[13px] text-[var(--ink-mute)]">{label}</span>
+      <span className="text-sm text-[var(--ink)]">{children}</span>
     </div>
   )
 }

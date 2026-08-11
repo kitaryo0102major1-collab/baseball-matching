@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Chat, ChatInsert } from '@/lib/types'
+import Logo from './Logo'
 
 interface Props {
   postId: string
@@ -23,7 +24,7 @@ export default function ChatArea({ postId }: Props) {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // 初回ロード
   useEffect(() => {
@@ -61,7 +62,9 @@ export default function ChatArea({ postId }: Props) {
 
   // 新着メッセージへスクロール
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight
+    }
   }, [chats])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -87,40 +90,40 @@ export default function ChatArea({ postId }: Props) {
 
   return (
     <div className="mt-8">
-      <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <span className="w-1 h-5 bg-[#1D9E75] rounded-full inline-block"></span>
-        チャット
+      <h2 className="text-lg font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
+        <span className="w-1 h-5 bg-[var(--green)] rounded-full inline-block"></span>
+        このチームへの公開メッセージ
       </h2>
 
       {/* メッセージ一覧 */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
+      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--line)] overflow-hidden mb-4">
         {chats.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 text-sm">
+          <div className="text-center py-10 text-[var(--ink-mute)] text-sm">
             まだメッセージはありません。最初に話しかけてみましょう！
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+          <div ref={containerRef} className="divide-y divide-[var(--line)] max-h-96 overflow-y-auto">
             {chats.map((chat) => (
               <div key={chat.id} className="px-5 py-4">
                 <div className="flex items-baseline justify-between mb-1">
-                  <span className="font-semibold text-sm text-[#1D9E75]">
-                    ⚾ {chat.team_name}
+                  <span className="font-semibold text-sm text-[var(--green)] flex items-center gap-1.5">
+                    <Logo size={16} />
+                    {chat.team_name}
                   </span>
-                  <span className="text-xs text-gray-400">{formatTime(chat.created_at)}</span>
+                  <span className="text-xs text-[var(--ink-mute)]">{formatTime(chat.created_at)}</span>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                <p className="text-sm text-[var(--ink-sub)] leading-relaxed whitespace-pre-wrap">
                   {chat.message}
                 </p>
               </div>
             ))}
-            <div ref={bottomRef} />
           </div>
         )}
       </div>
 
       {/* 送信フォーム */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700">メッセージを送る</h3>
+      <form onSubmit={handleSubmit} className="bg-[var(--surface)] rounded-2xl border border-[var(--line)] p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-[var(--ink-sub)]">メッセージを送る</h3>
 
         {error && (
           <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -129,39 +132,39 @@ export default function ChatArea({ postId }: Props) {
         )}
 
         <div>
-          <label className="block text-xs text-gray-500 mb-1">チーム名 <span className="text-red-500">*</span></label>
+          <label className="block text-xs text-[var(--ink-mute)] mb-1">チーム名 <span className="text-red-500">*</span></label>
           <input
             type="text"
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
             placeholder="例：〇〇ベースボールクラブ"
             maxLength={50}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40 transition"
+            className="w-full border border-[var(--line)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]/40 transition"
           />
         </div>
 
         <div>
-          <label className="block text-xs text-gray-500 mb-1">メッセージ <span className="text-red-500">*</span></label>
+          <label className="block text-xs text-[var(--ink-mute)] mb-1">メッセージ <span className="text-red-500">*</span></label>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="対戦希望の日程や人数など、気軽にメッセージしてみましょう！"
             rows={3}
             maxLength={500}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/40 transition resize-none"
+            className="w-full border border-[var(--line)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]/40 transition resize-none"
           />
-          <p className="text-right text-xs text-gray-300 mt-0.5">{message.length}/500</p>
+          <p className="text-right text-xs text-[var(--ink-mute)] mt-0.5">{message.length}/500</p>
         </div>
 
         <button
           type="submit"
           disabled={sending}
-          className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+          className="w-full bg-[var(--green)] hover:opacity-90 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
         >
           {sending ? '送信中...' : '送信する'}
         </button>
 
-        <p className="text-center text-xs text-gray-400">登録不要・無料で送れます</p>
+        <p className="text-center text-xs text-[var(--ink-mute)]">登録不要・無料で送れます</p>
       </form>
     </div>
   )

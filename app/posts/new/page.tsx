@@ -370,24 +370,26 @@ export default function NewPostPage() {
           <FormLabel>チームSNS（任意）</FormLabel>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">𝕏 X (Twitter) ユーザー名</label>
+              <label className="block text-xs text-gray-500 mb-1">X（旧Twitter）のアカウントURL</label>
               <input
-                type="text"
+                type="url"
                 value={snsX}
                 onChange={(e) => setSnsX(e.target.value)}
-                placeholder="@username"
+                placeholder="https://x.com/your_team"
                 className={inputClass()}
               />
+              <p className="text-xs text-gray-400 mt-1">例：https://x.com/your_team</p>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">📸 Instagram ユーザー名</label>
+              <label className="block text-xs text-gray-500 mb-1">Instagram のアカウントURL</label>
               <input
-                type="text"
+                type="url"
                 value={snsInstagram}
                 onChange={(e) => setSnsInstagram(e.target.value)}
-                placeholder="@username"
+                placeholder="https://instagram.com/your_team"
                 className={inputClass()}
               />
+              <p className="text-xs text-gray-400 mt-1">例：https://instagram.com/your_team</p>
             </div>
           </div>
         </div>
