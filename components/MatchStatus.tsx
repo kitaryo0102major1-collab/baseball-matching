@@ -9,13 +9,14 @@ const STATUS_OPTIONS: PostStatus[] = ['募集中', '決定済み']
 interface Props {
   postId: string
   initialStatus: PostStatus
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
   interactive?: boolean
 }
 
 const BADGE_SIZE = {
-  sm: 'text-xs px-2 py-0.5',
-  md: 'text-base px-4 py-1.5',
+  xs: 'text-[11px] font-bold px-1.5 py-1 rounded-md',
+  sm: 'text-xs px-2 py-0.5 rounded-full',
+  md: 'text-base px-4 py-1.5 rounded-full',
 }
 
 export default function MatchStatus({ postId, initialStatus, size = 'sm', interactive = false }: Props) {
@@ -73,10 +74,10 @@ export default function MatchStatus({ postId, initialStatus, size = 'sm', intera
         onClick={handleBadgeClick}
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
-        className={`inline-flex items-center gap-1 rounded-full font-bold border ${BADGE_SIZE[size]} ${
+        className={`inline-flex items-center gap-1 font-bold border ${BADGE_SIZE[size]} ${
           isOpenStatus
-            ? 'bg-[#E1F5EE] text-[#0F6E56] border-[#0F6E56]/30'
-            : 'bg-gray-100 text-gray-500 border-gray-300'
+            ? 'bg-[var(--green-bg)] text-[var(--green)] border-[var(--green)]/30'
+            : 'bg-[var(--line)] text-[var(--ink-mute)] border-[var(--line)]'
         } ${interactive ? 'cursor-pointer select-none hover:opacity-80 transition-opacity' : ''}`}
       >
         {updating ? '更新中...' : status}
@@ -84,14 +85,14 @@ export default function MatchStatus({ postId, initialStatus, size = 'sm', intera
       </span>
 
       {interactive && open && (
-        <div className="absolute left-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+        <div className="absolute left-0 top-full mt-1 w-32 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 overflow-hidden">
           {STATUS_OPTIONS.map((opt) => (
             <button
               key={opt}
               type="button"
               onClick={(e) => handleSelect(opt, e)}
-              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
-                opt === status ? 'font-semibold text-[#1D9E75]' : 'text-gray-700'
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[var(--bg)] transition-colors ${
+                opt === status ? 'font-semibold text-[var(--green)]' : 'text-[var(--ink-sub)]'
               }`}
             >
               {opt}

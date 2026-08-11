@@ -4,10 +4,7 @@ import FieldBadge from './FieldBadge'
 import LevelBadge from './LevelBadge'
 import MatchStatus from './MatchStatus'
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
-}
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
 function formatTime(t: string | null) {
   if (!t) return null
@@ -21,45 +18,44 @@ interface Props {
 export default function PostCard({ post }: Props) {
   const isDecided = post.status === '決定済み'
 
-  const timeRange =
-    post.start_time || post.end_time
-      ? `${formatTime(post.start_time) ?? '?'}〜${formatTime(post.end_time) ?? '?'}`
-      : null
+  const d = new Date(post.game_date)
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  const weekday = WEEKDAY_LABELS[d.getDay()]
+
+  const startTime = formatTime(post.start_time)
+  const endTime = formatTime(post.end_time)
+  const timePart = startTime ? `${startTime}〜${endTime ?? '?'}` : '時間未定'
+
+  const areaPart = [post.prefecture, post.area_detail].filter(Boolean).join(' ')
+  const locationPart = [areaPart, post.venue_name].filter(Boolean).join('／')
+  const metaLine = [timePart, locationPart].filter(Boolean).join(' ・ ')
 
   return (
     <Link href={`/posts/${post.id}`} className="block group">
       <div
-        className={`bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-[#1D9E75]/40 transition-all ${
-          isDecided ? 'opacity-60' : ''
+        className={`grid grid-cols-[56px_1fr] gap-3.5 p-3.5 rounded-2xl border transition-all hover:shadow-md ${
+          isDecided ? 'bg-[#F2EFE6] border-[var(--line)] opacity-[0.62]' : 'bg-[var(--surface)] border-[var(--line)] hover:border-[var(--green)]/40'
         }`}
       >
-        <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          <MatchStatus postId={post.id} initialStatus={post.status} size="sm" />
-          <FieldBadge status={post.field_status} size="sm" />
-          <LevelBadge level={post.level} size="sm" />
+        <div className="text-center border-r border-[#EDE7D8] pr-1.5">
+          <p className="text-[11px] text-[var(--ink-mute)]">{month}月</p>
+          <p className={`text-2xl font-black leading-none ${isDecided ? 'text-[var(--ink-mute)]' : 'text-[var(--green)]'}`}>
+            {day}
+          </p>
+          <p className={`text-[11px] font-bold ${isDecided ? 'text-[var(--ink-mute)]' : 'text-[var(--clay)]'}`}>
+            {weekday}
+          </p>
         </div>
-        <h3 className="font-semibold text-gray-900 group-hover:text-[#1D9E75] transition-colors line-clamp-2 mb-2">
-          {post.title}
-        </h3>
-        <div className="space-y-1 text-sm text-gray-500">
-          <div className="flex items-center gap-1.5">
-            <span>📅</span>
-            <span>{formatDate(post.game_date)}</span>
-            {timeRange && <span className="text-gray-400">｜ {timeRange}</span>}
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+            <MatchStatus postId={post.id} initialStatus={post.status} size="xs" />
+            <FieldBadge status={post.field_status} size="xs" />
+            <LevelBadge level={post.level} size="xs" />
           </div>
-          {(post.prefecture || post.area_detail || post.venue_name) && (
-            <div className="flex items-center gap-1.5">
-              <span>📍</span>
-              <span>
-                {[
-                  [post.prefecture, post.area_detail].filter(Boolean).join('・'),
-                  post.venue_name,
-                ]
-                  .filter(Boolean)
-                  .join(' / ')}
-              </span>
-            </div>
-          )}
+          <h3 className="text-[15px] font-bold leading-relaxed line-clamp-2 text-[var(--ink)]">{post.title}</h3>
+          <p className="text-xs text-[var(--ink-sub)] mt-1">{metaLine}</p>
         </div>
       </div>
     </Link>
