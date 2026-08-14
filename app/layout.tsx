@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     description: '草野球マッチは、草野球チームの対戦相手マッチングサービスです。グラウンドの有無で相手を探したり、練習試合の募集を無料・登録不要で投稿できます。',
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: '草野球マッチ | 対戦相手マッチングサービス',
     description: '草野球マッチは、草野球チームの対戦相手マッチングサービスです。グラウンドの有無で相手を探したり、練習試合の募集を無料・登録不要で投稿できます。',
   },
