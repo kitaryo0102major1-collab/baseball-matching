@@ -31,7 +31,7 @@ function PostsContent() {
   const [field, setField] = useState<'' | FieldStatus>((searchParams.get('field') as FieldStatus) ?? '')
   const [level, setLevel] = useState<'' | Level>((searchParams.get('level') as Level) ?? '')
   const [weekend, setWeekend] = useState(searchParams.get('weekend') === '1')
-  const [showDecided, setShowDecided] = useState(searchParams.get('decided') === '1')
+  const [showDecided, setShowDecided] = useState(searchParams.get('decided') !== '0')
   const [moreOpen, setMoreOpen] = useState(false)
   const [sort, setSort] = useState<'date' | 'new'>('date')
   const [methodSheetOpen, setMethodSheetOpen] = useState(false)
@@ -66,7 +66,7 @@ function PostsContent() {
     if (field) params.set('field', field)
     if (level) params.set('level', level)
     if (weekend) params.set('weekend', '1')
-    if (showDecided) params.set('decided', '1')
+    if (!showDecided) params.set('decided', '0')
     const qs = params.toString()
     router.replace(qs ? `/posts?${qs}` : '/posts')
   }, [prefecture, date, field, level, weekend, showDecided, router])
@@ -77,7 +77,7 @@ function PostsContent() {
     setField('')
     setLevel('')
     setWeekend(false)
-    setShowDecided(false)
+    setShowDecided(true)
   }
 
   const weekendFiltered = weekend
@@ -108,7 +108,7 @@ function PostsContent() {
   }
   if (level) appliedChips.push({ key: 'level', label: `Lv.${level}`, onRemove: () => setLevel('') })
   if (weekend) appliedChips.push({ key: 'weekend', label: '土日のみ', onRemove: () => setWeekend(false) })
-  if (showDecided) appliedChips.push({ key: 'decided', label: '決定済みも表示', onRemove: () => setShowDecided(false) })
+  if (!showDecided) appliedChips.push({ key: 'decided', label: '決定済みを除く', onRemove: () => setShowDecided(true) })
 
   function renderPrefectureSelect(className: string) {
     return (
