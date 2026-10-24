@@ -248,16 +248,6 @@ export default function PostForm({ mode, initialPost }: Props) {
                 </select>
               </div>
 
-              <div>
-                <FormLabel>エリア詳細（任意）</FormLabel>
-                <input
-                  type="text"
-                  value={areaDetail}
-                  onChange={(e) => setAreaDetail(e.target.value)}
-                  placeholder="例：船橋市周辺、〇〇駅から車で15分 など"
-                  className={inputClass()}
-                />
-              </div>
             </>
           )}
 
@@ -299,6 +289,22 @@ export default function PostForm({ mode, initialPost }: Props) {
                     placeholder="例：〇〇球場 第2グラウンド"
                     className={inputClass(!!errors.venueName)}
                   />
+                </div>
+              )}
+
+              {fieldStatus === 'ng' && (
+                <div>
+                  <FormLabel>希望エリア（任意）</FormLabel>
+                  <input
+                    type="text"
+                    value={areaDetail}
+                    onChange={(e) => setAreaDetail(e.target.value)}
+                    placeholder="例：船橋市・津田沼駅周辺、〇〇区内 など"
+                    className={inputClass()}
+                  />
+                  <p className="text-xs text-[var(--ink-mute)] mt-1">
+                    市区町村や最寄り駅を入れると相手チームに伝わりやすくなります
+                  </p>
                 </div>
               )}
 
