@@ -12,6 +12,7 @@ type Phase =
   | 'prefecture'
   | 'field_status'
   | 'venue_name'
+  | 'area_detail'
   | 'game_date'
   | 'time_choice'
   | 'time_range'
@@ -25,6 +26,7 @@ interface Answers {
   prefecture: string
   fieldStatus: FieldStatus | null
   venueName: string
+  areaDetail: string
   gameDate: string
   timeChoice: TimeChoice
   startTime: string
@@ -46,6 +48,7 @@ interface Snapshot {
   answers: Answers
   prefectureDraft: string
   venueNameDraft: string
+  areaDetailDraft: string
   gameDateDraft: string
   startTimeDraft: string
   endTimeDraft: string
@@ -67,6 +70,7 @@ const BOT_MESSAGES: Record<Phase, string> = {
   prefecture: '都道府県を教えてください',
   field_status: 'グラウンドの手配はできますか？',
   venue_name: 'グラウンド名を教えてください',
+  area_detail: 'どのあたりで試合したいですか？\n市区町村や最寄り駅などを教えてください（任意）',
   game_date: '試合希望日を教えてください',
   time_choice: '時間帯はいつ頃希望ですか？（任意）',
   time_range: '開始時刻・終了時刻を教えてください',
@@ -102,6 +106,7 @@ export default function QuickPostPage() {
     prefecture: '',
     fieldStatus: null,
     venueName: '',
+    areaDetail: '',
     gameDate: '',
     timeChoice: null,
     startTime: '',
@@ -119,6 +124,7 @@ export default function QuickPostPage() {
 
   const [prefectureDraft, setPrefectureDraft] = useState('')
   const [venueNameDraft, setVenueNameDraft] = useState('')
+  const [areaDetailDraft, setAreaDetailDraft] = useState('')
   const [gameDateDraft, setGameDateDraft] = useState('')
   const [startTimeDraft, setStartTimeDraft] = useState('')
   const [endTimeDraft, setEndTimeDraft] = useState('')
@@ -137,6 +143,7 @@ export default function QuickPostPage() {
       answers,
       prefectureDraft,
       venueNameDraft,
+      areaDetailDraft,
       gameDateDraft,
       startTimeDraft,
       endTimeDraft,
@@ -165,6 +172,7 @@ export default function QuickPostPage() {
     setAnswers(last.answers)
     setPrefectureDraft(last.prefectureDraft)
     setVenueNameDraft(last.venueNameDraft)
+    setAreaDetailDraft(last.areaDetailDraft)
     setGameDateDraft(last.gameDateDraft)
     setStartTimeDraft(last.startTimeDraft)
     setEndTimeDraft(last.endTimeDraft)
@@ -181,7 +189,12 @@ export default function QuickPostPage() {
 
   function handleFieldStatus(value: FieldStatus) {
     const label = value === 'ok' ? 'できる' : 'できない'
-    advance(label, value === 'ok' ? 'venue_name' : 'game_date', { fieldStatus: value })
+    advance(label, value === 'ok' ? 'venue_name' : 'area_detail', { fieldStatus: value })
+  }
+
+  function handleAreaDetailNext(skip: boolean) {
+    const trimmed = skip ? '' : areaDetailDraft.trim()
+    advance(trimmed || 'スキップ', 'game_date', { areaDetail: trimmed })
   }
 
   function handleVenueNext() {
@@ -236,6 +249,7 @@ export default function QuickPostPage() {
       prefecture: answers.prefecture,
       field_status: answers.fieldStatus,
       venue_name: answers.fieldStatus === 'ok' ? answers.venueName : null,
+      area_detail: answers.fieldStatus === 'ng' ? answers.areaDetail || null : null,
       level: answers.level,
       game_date: answers.gameDate,
       start_time: answers.timeChoice === 'specify' ? answers.startTime || null : null,
@@ -353,6 +367,35 @@ export default function QuickPostPage() {
               <button type="button" onClick={handleVenueNext} disabled={!venueNameDraft.trim()} className={NEXT_BUTTON_CLASS}>
                 次へ
               </button>
+            </div>
+          )}
+
+          {phase === 'area_detail' && (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={areaDetailDraft}
+                onChange={(e) => setAreaDetailDraft(e.target.value)}
+                placeholder="例：船橋市・津田沼駅周辺、〇〇区内 など"
+                className={FIELD_INPUT_CLASS}
+              />
+              <div className="grid grid-cols-[1fr_2fr] gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleAreaDetailNext(true)}
+                  className="border border-[var(--line)] text-[var(--ink-sub)] font-semibold py-2.5 rounded-lg text-sm"
+                >
+                  スキップ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAreaDetailNext(false)}
+                  disabled={!areaDetailDraft.trim()}
+                  className={NEXT_BUTTON_CLASS}
+                >
+                  次へ
+                </button>
+              </div>
             </div>
           )}
 
@@ -509,6 +552,12 @@ export default function QuickPostPage() {
                 {answers.fieldStatus === 'ok' ? `あり（${answers.venueName}）` : 'なし'}
               </span>
             </div>
+            {answers.fieldStatus === 'ng' && answers.areaDetail && (
+              <div className="flex justify-between gap-3">
+                <span className="text-[var(--ink-mute)] shrink-0">希望エリア</span>
+                <span className="text-[var(--ink)] font-medium text-right">{answers.areaDetail}</span>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
               <span className="text-[var(--ink-mute)] shrink-0">試合希望日</span>
               <span className="text-[var(--ink)] font-medium text-right">{formatDateDisplay(answers.gameDate)}</span>
