@@ -146,11 +146,19 @@ export default async function PostDetailPage({ params }: Props) {
           )}
         </div>
 
+        {/* 連絡先（モバイルのみ） */}
+        <div className="lg:hidden">
+          <DetailContactCta post={post} />
+        </div>
+
         {/* チャット */}
         <ChatArea postId={post.id} />
       </div>
 
-      <DetailContactCta post={post} />
+      {/* 連絡先（PC サイドバー） */}
+      <div className="hidden lg:block">
+        <DetailContactCta post={post} />
+      </div>
     </div>
   )
 }
