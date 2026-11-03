@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Zen_Kaku_Gothic_New } from 'next/font/google'
+import Link from 'next/link'
 import './globals.css'
 import Header from '@/components/Header'
 import BottomTabBar from '@/components/BottomTabBar'
@@ -52,8 +53,13 @@ export default function RootLayout({
       <body className={`${zenKaku.className} min-h-full flex flex-col`}>
         <Header />
         <main className="flex-1">{children}</main>
-        <footer className="bg-[var(--bg)] text-[var(--ink-mute)] text-center py-4 text-xs mt-auto">
-          © 2025 草野球マッチ
+        <footer className="bg-[var(--bg)] text-[var(--ink-mute)] text-center py-4 text-xs mt-auto space-y-1">
+          <p>
+            <Link href="/privacy" className="hover:text-[var(--green)] underline">
+              プライバシーポリシー
+            </Link>
+          </p>
+          <p>© 2025 草野球マッチ</p>
         </footer>
         <BottomTabBar />
       </body>

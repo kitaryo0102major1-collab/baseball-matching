@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Logo from './Logo'
+import HeaderAccount from './HeaderAccount'
 
 export default function Header() {
   const pathname = usePathname()
@@ -14,6 +15,7 @@ export default function Header() {
           <Logo />
           <span className="hidden sm:block">草野球マッチ</span>
         </Link>
+        <div className="flex items-center gap-3">
         <nav className="hidden sm:flex items-center gap-3">
           <Link
             href="/posts"
@@ -36,6 +38,8 @@ export default function Header() {
             募集する
           </Link>
         </nav>
+        <HeaderAccount />
+        </div>
       </div>
     </header>
   )

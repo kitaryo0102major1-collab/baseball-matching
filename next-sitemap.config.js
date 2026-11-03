@@ -7,7 +7,7 @@ module.exports = {
       { userAgent: '*', allow: '/' },
     ],
   },
-  exclude: [],
+  exclude: ['/login', '/mypage', '/mypage/*', '/auth/*'],
   changefreq: 'daily',
   priority: 0.7,
 }
