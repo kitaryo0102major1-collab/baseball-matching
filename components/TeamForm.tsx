@@ -15,6 +15,7 @@ import {
   type Team,
   type TeamInput,
 } from '@/lib/types'
+import { setSelectedTeamCookie } from '@/lib/selectedTeam'
 import TeamAvatar from './TeamAvatar'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
@@ -84,11 +85,12 @@ function isHttpUrl(value: string) {
 }
 
 interface Props {
-  userId: string
   initialTeam: Team | null
+  cancelHref: string
+  children?: React.ReactNode
 }
 
-export default function TeamForm({ userId, initialTeam }: Props) {
+export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
   const router = useRouter()
   const isEdit = !!initialTeam
 
@@ -185,28 +187,9 @@ export default function TeamForm({ userId, initialTeam }: Props) {
     setErrors({})
     const supabase = createClient()
 
-    let nextLogoUrl = logoUrl
-    if (logoFile) {
-      const path = `${userId}/logo`
-      const { error: uploadError } = await supabase.storage
-        .from('team-logos')
-        .upload(path, logoFile, { upsert: true, contentType: logoFile.type, cacheControl: '3600' })
-      if (uploadError) {
-        setSaving(false)
-        setErrors({ submit: 'ロゴ画像のアップロードに失敗しました。画像を変えるか、もう一度お試しください。' })
-        return
-      }
-      const { data } = supabase.storage.from('team-logos').getPublicUrl(path)
-      // 同じパスに上書きするため、URLを変えてブラウザ・CDNのキャッシュを避ける
-      nextLogoUrl = `${data.publicUrl}?v=${Date.now()}`
-    } else if (!logoUrl && initialTeam?.logo_url) {
-      await supabase.storage.from('team-logos').remove([`${userId}/logo`])
-    }
-
     const payload: TeamInput = {
-      owner_id: userId,
       name: name.trim(),
-      logo_url: nextLogoUrl,
+      logo_url: logoUrl,
       description: description.trim() || null,
       prefecture,
       area_detail: areaDetail.trim() || null,
@@ -226,18 +209,50 @@ export default function TeamForm({ userId, initialTeam }: Props) {
       contact_public: contactPublic,
     }
 
+    // 作成直後はまだ select 権限（管理者）判定前なので、insert では値を返させず ID を自前で決める
+    const teamId = initialTeam?.id ?? crypto.randomUUID()
+
     const { error } = isEdit
-      ? await supabase.from('teams').update(payload).eq('id', initialTeam.id)
-      : await supabase.from('teams').insert(payload)
+      ? await supabase.from('teams').update(payload).eq('id', teamId)
+      : await supabase.from('teams').insert({ ...payload, id: teamId })
 
     if (error) {
       setSaving(false)
-      setErrors({
-        submit:
-          error.code === '23505'
-            ? 'このアカウントではすでにチームが登録されています。ページを再読み込みしてください。'
-            : '保存に失敗しました。もう一度お試しください。',
-      })
+      setErrors({ submit: '保存に失敗しました。もう一度お試しください。' })
+      return
+    }
+
+    // ロゴは「そのチームの管理者」しか置けないため、チームの作成後にアップロードする
+    const logoPath = `${teamId}/logo`
+    let logoFailed = false
+    if (logoFile) {
+      const { error: uploadError } = await supabase.storage
+        .from('team-logos')
+        .upload(logoPath, logoFile, { upsert: true, contentType: logoFile.type, cacheControl: '3600' })
+      if (uploadError) {
+        logoFailed = true
+      } else {
+        const { data } = supabase.storage.from('team-logos').getPublicUrl(logoPath)
+        // 同じパスに上書きするため、URLを変えてブラウザ・CDNのキャッシュを避ける
+        const { error: logoUpdateError } = await supabase
+          .from('teams')
+          .update({ logo_url: `${data.publicUrl}?v=${Date.now()}` })
+          .eq('id', teamId)
+        logoFailed = !!logoUpdateError
+      }
+    } else if (!logoUrl && initialTeam?.logo_url) {
+      await supabase.storage.from('team-logos').remove([logoPath])
+    }
+
+    if (!isEdit) setSelectedTeamCookie(teamId)
+
+    if (logoFailed) {
+      setSaving(false)
+      setErrors({ submit: 'チーム情報は保存しましたが、ロゴ画像のアップロードに失敗しました。編集画面からもう一度お試しください。' })
+      if (!isEdit) {
+        router.replace('/mypage/team')
+        router.refresh()
+      }
       return
     }
 
@@ -248,7 +263,8 @@ export default function TeamForm({ userId, initialTeam }: Props) {
   const shownLogo = logoPreview ?? logoUrl
 
   return (
-    <form onSubmit={handleSubmit} className="pb-28">
+    <div className="pb-28">
+    <form onSubmit={handleSubmit}>
       <div className="max-w-2xl mx-auto px-4 pt-8 space-y-5">
         <div>
           <h1 className="text-xl font-black text-[var(--ink)]">{isEdit ? 'チーム情報を編集' : 'チームを登録する'}</h1>
@@ -558,7 +574,7 @@ export default function TeamForm({ userId, initialTeam }: Props) {
               </span>
             </label>
             <p className="text-xs text-[#A3462B] mt-2">公開すると誰でも見られる状態になります</p>
-            <p className="text-xs text-[var(--ink-mute)] mt-1">オフのままなら、連絡先はあなた以外には表示されません。</p>
+            <p className="text-xs text-[var(--ink-mute)] mt-1">オフのままなら、連絡先はチームの管理者以外には表示されません。</p>
           </div>
         </Section>
       </div>
@@ -567,7 +583,7 @@ export default function TeamForm({ userId, initialTeam }: Props) {
         <div className="max-w-2xl mx-auto flex gap-3">
           <button
             type="button"
-            onClick={() => router.push(isEdit ? '/mypage' : '/')}
+            onClick={() => router.push(cancelHref)}
             className="flex-1 bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] font-semibold py-3 rounded-xl"
           >
             戻る
@@ -582,5 +598,7 @@ export default function TeamForm({ userId, initialTeam }: Props) {
         </div>
       </div>
     </form>
+    {children && <div className="max-w-2xl mx-auto px-4 pt-5">{children}</div>}
+    </div>
   )
 }

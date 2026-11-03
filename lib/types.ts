@@ -56,11 +56,31 @@ export interface TeamProfile {
 }
 
 export interface Team extends TeamProfile {
-  owner_id: string
+  created_by: string | null
   contact_public: boolean
 }
 
-export type TeamInput = Omit<Team, 'id' | 'created_at' | 'updated_at'>
+export type TeamInput = Omit<Team, 'id' | 'created_by' | 'created_at' | 'updated_at'>
+
+export type TeamSummary = Pick<Team, 'id' | 'name' | 'logo_url'>
+
+export interface TeamMember {
+  team_id: string
+  user_id: string
+  display_name: string | null
+  avatar_url: string | null
+  created_at: string
+}
+
+export interface TeamInvite {
+  id: string
+  team_id: string
+  token: string
+  created_by: string | null
+  expires_at: string
+  revoked_at: string | null
+  created_at: string
+}
 
 export interface Chat {
   id: string

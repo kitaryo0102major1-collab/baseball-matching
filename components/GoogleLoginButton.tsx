@@ -2,14 +2,21 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { setAuthNextCookie } from '@/lib/selectedTeam'
 
-export default function GoogleLoginButton() {
+interface Props {
+  next?: string
+  label?: string
+}
+
+export default function GoogleLoginButton({ next, label = 'Googleでログイン' }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
 
   async function handleLogin() {
     setLoading(true)
     setError(false)
+    if (next) setAuthNextCookie(next)
     const { error } = await createClient().auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -29,7 +36,7 @@ export default function GoogleLoginButton() {
         className="w-full flex items-center justify-center gap-3 bg-white border border-[var(--line)] hover:border-[var(--green)]/50 disabled:opacity-60 text-[var(--ink)] font-bold py-3.5 rounded-xl transition-colors"
       >
         <GoogleIcon />
-        {loading ? 'Googleに移動しています...' : 'Googleでログイン'}
+        {loading ? 'Googleに移動しています...' : label}
       </button>
       {error && (
         <p className="text-xs text-red-500 mt-2 text-center">ログインを開始できませんでした。もう一度お試しください。</p>

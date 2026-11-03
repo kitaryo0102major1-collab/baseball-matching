@@ -1,5 +1,7 @@
+import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { AUTH_NEXT_COOKIE, isSafeNextPath } from '@/lib/selectedTeam'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -15,7 +17,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=1`)
   }
 
-  const { data: team } = await supabase.from('teams').select('id').eq('owner_id', data.user.id).maybeSingle()
+  const cookieStore = await cookies()
+  const next = cookieStore.get(AUTH_NEXT_COOKIE)?.value
+  cookieStore.delete(AUTH_NEXT_COOKIE)
+  const nextPath = next ? decodeURIComponent(next) : null
+  if (isSafeNextPath(nextPath)) {
+    return NextResponse.redirect(`${origin}${nextPath}`)
+  }
 
-  return NextResponse.redirect(`${origin}${team ? '/mypage' : '/mypage/team'}`)
+  const { count } = await supabase.from('teams').select('id', { count: 'exact', head: true })
+
+  return NextResponse.redirect(`${origin}${count ? '/mypage' : '/mypage/team/new'}`)
 }
