@@ -20,8 +20,18 @@ export interface MatchPost {
   contact_other: string | null
   sns_x: string | null
   sns_instagram: string | null
+  team_id: string | null
+  created_by: string | null
   created_at: string
 }
+
+export interface PostTeamBadge {
+  id: string
+  name: string
+  logo_url: string | null
+}
+
+export type MatchPostWithTeam = MatchPost & { team: PostTeamBadge | null }
 
 export const ACTIVITY_DAYS = ['月', '火', '水', '木', '金', '土', '日', '祝'] as const
 export const ACTIVITY_TIMES = ['午前', '午後', '夕方以降', '不定'] as const
@@ -87,6 +97,7 @@ export interface Chat {
   post_id: string
   team_name: string
   message: string
+  team_id: string | null
   created_at: string
 }
 
@@ -94,7 +105,24 @@ export interface ChatInsert {
   post_id: string
   team_name: string
   message: string
+  team_id?: string | null
 }
+
+// 募集フォームで自動入力に使う、管理中チームの情報（本人は RLS で全項目を読める）
+export type MyTeamForPost = Pick<
+  Team,
+  | 'id'
+  | 'name'
+  | 'logo_url'
+  | 'prefecture'
+  | 'area_detail'
+  | 'level'
+  | 'contact_email'
+  | 'contact_phone'
+  | 'contact_other'
+  | 'sns_x'
+  | 'sns_instagram'
+>
 
 export interface MatchPostInsert {
   title: string
@@ -112,4 +140,6 @@ export interface MatchPostInsert {
   contact_other?: string | null
   sns_x?: string | null
   sns_instagram?: string | null
+  team_id?: string | null
+  created_by?: string | null
 }

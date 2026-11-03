@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
+import { useMyTeams } from '@/lib/useMyTeams'
 import type { FieldStatus, Level, MatchPostInsert } from '@/lib/types'
 import { PREFECTURES } from '@/lib/prefectures'
 import Logo from '@/components/Logo'
 import PostCreatedScreen from '@/components/PostCreatedScreen'
+import TeamAvatar from '@/components/TeamAvatar'
 
 type Phase =
+  | 'team'
   | 'prefecture'
   | 'field_status'
   | 'venue_name'
@@ -23,6 +26,10 @@ type Phase =
 type TimeChoice = 'specify' | 'unspecified' | null
 
 interface Answers {
+  teamId: string
+  teamName: string
+  snsX: string
+  snsInstagram: string
   prefecture: string
   fieldStatus: FieldStatus | null
   venueName: string
@@ -67,6 +74,7 @@ const LEVEL_SHORT: Record<Level, string> = {
 }
 
 const BOT_MESSAGES: Record<Phase, string> = {
+  team: 'どのチームとして募集しますか？',
   prefecture: '都道府県を教えてください',
   field_status: 'グラウンドの手配はできますか？',
   venue_name: 'グラウンド名を教えてください',
@@ -103,6 +111,10 @@ export default function QuickPostPage() {
   const [phase, setPhase] = useState<Phase>('prefecture')
   const [messages, setMessages] = useState<Message[]>([{ from: 'bot', text: BOT_MESSAGES.prefecture }])
   const [answers, setAnswers] = useState<Answers>({
+    teamId: '',
+    teamName: '',
+    snsX: '',
+    snsInstagram: '',
     prefecture: '',
     fieldStatus: null,
     venueName: '',
@@ -131,6 +143,17 @@ export default function QuickPostPage() {
   const [contactEmailDraft, setContactEmailDraft] = useState('')
   const [contactPhoneDraft, setContactPhoneDraft] = useState('')
   const [contactOtherDraft, setContactOtherDraft] = useState('')
+
+  const myTeams = useMyTeams()
+  const teamOptions = myTeams.status === 'member' ? myTeams.teams : []
+
+  // 管理チームがあるログインユーザーだけ、最初の質問を「どのチームとして募集しますか？」にする
+  useEffect(() => {
+    if (teamOptions.length === 0 || history.length > 0 || phase !== 'prefecture') return
+    setPhase('team')
+    setMessages([{ from: 'bot', text: BOT_MESSAGES.team }])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamOptions.length])
 
   if (createdId) {
     return <PostCreatedScreen postId={createdId} />
@@ -161,7 +184,47 @@ export default function QuickPostPage() {
       { from: 'bot', text: BOT_MESSAGES[next] },
     ])
     if (patch) setAnswers((a) => ({ ...a, ...patch }))
+    if (next === 'confirm') setTitle((t) => t || buildTitle({ ...answers, ...patch }))
     setPhase(next)
+  }
+
+  const teamHasContact = !!(answers.contactEmail || answers.contactPhone || answers.contactOther)
+
+  // チームとして募集する場合、自動入力済みのレベル・連絡先の質問を飛ばす
+  function phaseAfterTime(): Phase {
+    if (!answers.teamId) return 'level'
+    return teamHasContact ? 'confirm' : 'contact'
+  }
+
+  function handleTeam(teamId: string) {
+    const team = teamOptions.find((t) => t.id === teamId)
+    if (!team) {
+      advance('チームとしてではなく募集する', 'prefecture', {
+        teamId: '',
+        teamName: '',
+        snsX: '',
+        snsInstagram: '',
+        prefecture: '',
+        level: null,
+        contactEmail: '',
+        contactPhone: '',
+        contactOther: '',
+      })
+      return
+    }
+    setAreaDetailDraft(team.area_detail ?? '')
+    setPrefectureDraft(team.prefecture)
+    advance(team.name, 'field_status', {
+      teamId: team.id,
+      teamName: team.name,
+      snsX: team.sns_x ?? '',
+      snsInstagram: team.sns_instagram ?? '',
+      prefecture: team.prefecture,
+      level: team.level,
+      contactEmail: team.contact_email ?? '',
+      contactPhone: team.contact_phone ?? '',
+      contactOther: team.contact_other ?? '',
+    })
   }
 
   function goBack() {
@@ -210,7 +273,7 @@ export default function QuickPostPage() {
 
   function handleTimeChoice(choice: 'specify' | 'unspecified') {
     if (choice === 'unspecified') {
-      advance('まだ未定', 'level', { timeChoice: choice })
+      advance('まだ未定', phaseAfterTime(), { timeChoice: choice })
     } else {
       advance('時間を指定する', 'time_range', { timeChoice: choice })
     }
@@ -218,7 +281,7 @@ export default function QuickPostPage() {
 
   function handleTimeRangeNext() {
     if (!startTimeDraft && !endTimeDraft) return
-    advance(`${startTimeDraft || '?'}〜${endTimeDraft || '?'}`, 'level', {
+    advance(`${startTimeDraft || '?'}〜${endTimeDraft || '?'}`, phaseAfterTime(), {
       startTime: startTimeDraft,
       endTime: endTimeDraft,
     })
@@ -259,7 +322,16 @@ export default function QuickPostPage() {
       contact_other: answers.contactOther || null,
     }
 
-    const { data, error } = await supabase.from('match_posts').insert(payload).select('id').single()
+    if (myTeams.status === 'member') {
+      payload.team_id = answers.teamId || null
+      payload.created_by = myTeams.userId
+      if (answers.teamId) {
+        payload.sns_x = answers.snsX || null
+        payload.sns_instagram = answers.snsInstagram || null
+      }
+    }
+
+    const { data, error } = await createClient().from('match_posts').insert(payload).select('id').single()
     setSubmitting(false)
     if (error || !data) {
       setSubmitError(true)
@@ -316,6 +388,32 @@ export default function QuickPostPage() {
       {/* 回答エリア */}
       {phase !== 'confirm' && (
         <div className="bg-[var(--surface)] rounded-xl border border-[var(--line)] p-4">
+          {phase === 'team' && (
+            <div className="space-y-2">
+              {teamOptions.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleTeam(t.id)}
+                  className="w-full flex items-center gap-3 border-2 border-[var(--line)] hover:border-[var(--green)] hover:bg-[var(--green-bg)] rounded-xl p-3 text-left transition-all"
+                >
+                  <TeamAvatar name={t.name} logoUrl={t.logo_url} size={32} />
+                  <span className="text-sm font-bold text-[var(--ink)] truncate">{t.name}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleTeam('')}
+                className={`${QUICK_REPLY_CLASS} w-full hover:border-[var(--green)] hover:bg-[var(--green-bg)]`}
+              >
+                チームとしてではなく募集する
+              </button>
+              <p className="text-xs text-[var(--ink-mute)]">
+                チームを選ぶと、都道府県・レベル・連絡先はチームの情報を使います（投稿前に確認できます）
+              </p>
+            </div>
+          )}
+
           {phase === 'prefecture' && (
             <div className="space-y-3">
               <select
@@ -542,6 +640,12 @@ export default function QuickPostPage() {
           </div>
 
           <div className="border-t border-[var(--line)] pt-4 space-y-2 text-sm">
+            {answers.teamId && (
+              <div className="flex justify-between gap-3">
+                <span className="text-[var(--ink-mute)] shrink-0">チーム</span>
+                <span className="text-[var(--ink)] font-bold text-right">{answers.teamName}</span>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
               <span className="text-[var(--ink-mute)] shrink-0">都道府県</span>
               <span className="text-[var(--ink)] font-medium text-right">{answers.prefecture}</span>
@@ -582,6 +686,11 @@ export default function QuickPostPage() {
                 {[answers.contactEmail, answers.contactPhone, answers.contactOther].filter(Boolean).join(' / ')}
               </span>
             </div>
+            {answers.teamId && (
+              <p className="text-xs text-[var(--ink-mute)] pt-1 leading-relaxed">
+                都道府県・レベル・連絡先はチームの情報を使っています。チームページで非公開にしている連絡先も、この募集には表示されます。変更したい場合は投稿後に「募集内容を修正する」から直せます。
+              </p>
+            )}
           </div>
 
           {submitError && <p className="text-xs text-red-500">投稿に失敗しました。もう一度お試しください。</p>}

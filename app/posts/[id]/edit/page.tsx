@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase'
+import { getPostPermissions } from '@/lib/postPermissions'
 import type { MatchPost } from '@/lib/types'
 import PostForm from '@/components/PostForm'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -13,5 +14,9 @@ export default async function EditPostPage({ params }: Props) {
 
   if (error || !data) notFound()
 
-  return <PostForm mode="edit" initialPost={data as MatchPost} />
+  const post = data as MatchPost
+  const { canEdit } = await getPostPermissions(post)
+  if (!canEdit) redirect(`/posts/${post.id}`)
+
+  return <PostForm mode="edit" initialPost={post} />
 }

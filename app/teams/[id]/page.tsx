@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { TeamProfile } from '@/lib/types'
+import type { MatchPost, TeamProfile } from '@/lib/types'
+import PostCard from '@/components/PostCard'
 import TeamAvatar from '@/components/TeamAvatar'
 import LevelBadge from '@/components/LevelBadge'
 
@@ -42,6 +43,16 @@ export default async function TeamPage({ params }: Props) {
   const schedule = [team.activity_days.join('・'), team.activity_times.join('・')].filter(Boolean).join(' ／ ')
   const members = [team.member_count ? `${team.member_count}人` : null, team.age_range].filter(Boolean).join(' ／ ')
   const hasContact = team.contact_email || team.contact_phone || team.contact_other
+
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: postsData } = await supabase
+    .from('match_posts')
+    .select('*')
+    .eq('team_id', team.id)
+    .eq('status', '募集中')
+    .gte('game_date', today)
+    .order('game_date', { ascending: true })
+  const openPosts = (postsData ?? []) as MatchPost[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
@@ -114,9 +125,24 @@ export default async function TeamPage({ params }: Props) {
         </div>
       )}
 
+      <section>
+        <h2 className="text-base font-bold text-[var(--ink)] mb-3">このチームの募集（{openPosts.length}件）</h2>
+        {openPosts.length > 0 ? (
+          <div className="space-y-3">
+            {openPosts.map((p) => (
+              <PostCard key={p.id} post={p} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--ink-mute)] bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 text-center">
+            現在募集中の試合はありません
+          </p>
+        )}
+      </section>
+
       <div className="text-center">
         <Link href="/posts" className="text-sm text-[var(--ink-mute)] hover:text-[var(--green)] transition-colors">
-          募集一覧を見る →
+          ほかの募集を見る →
         </Link>
       </div>
     </div>

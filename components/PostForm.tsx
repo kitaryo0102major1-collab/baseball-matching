@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import type { FieldStatus, Level, MatchPost, MatchPostInsert } from '@/lib/types'
+import { createClient } from '@/lib/supabase/client'
+import { useMyTeams } from '@/lib/useMyTeams'
+import type { FieldStatus, Level, MatchPost, MatchPostInsert, MyTeamForPost } from '@/lib/types'
 import { PREFECTURES, POPULAR_PREFECTURES } from '@/lib/prefectures'
 import BottomSheet from './BottomSheet'
 import PostCreatedScreen from './PostCreatedScreen'
+import TeamChoice from './TeamChoice'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
 
@@ -81,6 +83,36 @@ export default function PostForm({ mode, initialPost }: Props) {
   const [contactOther, setContactOther] = useState(initialPost?.contact_other ?? '')
   const [snsX, setSnsX] = useState(initialPost?.sns_x ?? '')
   const [snsInstagram, setSnsInstagram] = useState(initialPost?.sns_instagram ?? '')
+
+  const myTeams = useMyTeams()
+  const canPostAsTeam = mode === 'create' && myTeams.status === 'member' && myTeams.teams.length > 0
+  const [teamId, setTeamId] = useState('')
+  const defaultApplied = useRef(false)
+
+  function applyTeam(team: MyTeamForPost) {
+    setPrefecture(team.prefecture)
+    setAreaDetail(team.area_detail ?? '')
+    setLevel(team.level)
+    setContactEmail(team.contact_email ?? '')
+    setContactPhone(team.contact_phone ?? '')
+    setContactOther(team.contact_other ?? '')
+    setSnsX(team.sns_x ?? '')
+    setSnsInstagram(team.sns_instagram ?? '')
+  }
+
+  function chooseTeam(id: string) {
+    setTeamId(id)
+    if (myTeams.status !== 'member') return
+    const team = myTeams.teams.find((t) => t.id === id)
+    if (team) applyTeam(team)
+  }
+
+  useEffect(() => {
+    if (!canPostAsTeam || defaultApplied.current || myTeams.status !== 'member' || !myTeams.defaultTeamId) return
+    defaultApplied.current = true
+    chooseTeam(myTeams.defaultTeamId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPostAsTeam, myTeams])
 
   if (createdId) {
     return <PostCreatedScreen postId={createdId} />
@@ -161,15 +193,24 @@ export default function PostForm({ mode, initialPost }: Props) {
       sns_instagram: snsInstagram.trim() || null,
     }
 
+    const supabase = createClient()
+
     if (mode === 'edit' && initialPost) {
-      const { error } = await supabase.from('match_posts').update(payload).eq('id', initialPost.id)
+      // 権限がない場合 RLS で0件更新になりエラーは出ないため、更新件数で判定する
+      const { data, error } = await supabase.from('match_posts').update(payload).eq('id', initialPost.id).select('id')
       setSubmitting(false)
-      if (error) {
+      if (error || !data?.length) {
         setErrors({ submit: '保存に失敗しました。もう一度お試しください。' })
         return
       }
       router.push(`/posts/${initialPost.id}`)
+      router.refresh()
       return
+    }
+
+    if (myTeams.status === 'member') {
+      payload.team_id = teamId || null
+      payload.created_by = myTeams.userId
     }
 
     const { data, error } = await supabase.from('match_posts').insert(payload).select('id').single()
@@ -211,6 +252,16 @@ export default function PostForm({ mode, initialPost }: Props) {
         <div className="space-y-5">
           {step === 1 && (
             <>
+              {canPostAsTeam && myTeams.status === 'member' && (
+                <TeamChoice
+                  label="どのチームとして募集しますか？"
+                  teams={myTeams.teams}
+                  value={teamId}
+                  onChange={chooseTeam}
+                  guestLabel="チームとしてではなく募集する"
+                  hint={teamId ? 'チームの都道府県・レベル・連絡先・SNSを入力しました。あとから変更できます。' : undefined}
+                />
+              )}
               <div>
                 <FormLabel required>タイトル</FormLabel>
                 <input
@@ -385,6 +436,11 @@ export default function PostForm({ mode, initialPost }: Props) {
             <>
               <div>
                 <FormLabel required>連絡先（1つ以上）</FormLabel>
+                {teamId && (
+                  <p className="text-xs text-[var(--ink-mute)] mb-2">
+                    チームの連絡先を入力しました。チームページで非公開にしている連絡先も、この募集には表示されます。
+                  </p>
+                )}
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-[var(--ink-mute)] mb-1">メールアドレス</label>

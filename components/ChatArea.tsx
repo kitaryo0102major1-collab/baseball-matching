@@ -1,9 +1,19 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Chat, ChatInsert } from '@/lib/types'
+import { createClient } from '@/lib/supabase/client'
+import { useMyTeams } from '@/lib/useMyTeams'
+import type { Chat, ChatInsert, PostTeamBadge } from '@/lib/types'
 import Logo from './Logo'
+import TeamAvatar from './TeamAvatar'
+import TeamChoice from './TeamChoice'
+import RegisteredTeamBadge from './RegisteredTeamBadge'
+
+type ChatWithTeam = Chat & { team: PostTeamBadge | null }
+
+const CHAT_SELECT = '*, team:team_profiles(id, name, logo_url)'
 
 interface Props {
   postId: string
@@ -19,26 +29,42 @@ function formatTime(iso: string) {
 }
 
 export default function ChatArea({ postId }: Props) {
-  const [chats, setChats] = useState<Chat[]>([])
+  const [chats, setChats] = useState<ChatWithTeam[]>([])
   const [teamName, setTeamName] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // 初回ロード
+  const myTeams = useMyTeams()
+  const teams = myTeams.status === 'member' ? myTeams.teams : []
+  const [chatTeamId, setChatTeamId] = useState('')
+
+  // ログイン中は選択中チームを既定にし、チーム名を自動入力する
+  useEffect(() => {
+    if (myTeams.status !== 'member' || !myTeams.defaultTeamId) return
+    const team = myTeams.teams.find((t) => t.id === myTeams.defaultTeamId)
+    setChatTeamId(myTeams.defaultTeamId)
+    if (team) setTeamName(team.name)
+  }, [myTeams])
+
+  function chooseChatTeam(id: string) {
+    setChatTeamId(id)
+    const team = teams.find((t) => t.id === id)
+    setTeamName(team ? team.name : '')
+  }
+
   useEffect(() => {
     const fetchChats = async () => {
       const { data } = await supabase
         .from('chats')
-        .select('*')
+        .select(CHAT_SELECT)
         .eq('post_id', postId)
         .order('created_at', { ascending: true })
-      if (data) setChats(data as Chat[])
+      if (data) setChats(data as ChatWithTeam[])
     }
     fetchChats()
 
-    // リアルタイム購読
     const channel = supabase
       .channel(`chats:${postId}`)
       .on(
@@ -49,8 +75,18 @@ export default function ChatArea({ postId }: Props) {
           table: 'chats',
           filter: `post_id=eq.${postId}`,
         },
-        (payload) => {
-          setChats((prev) => [...prev, payload.new as Chat])
+        async (payload) => {
+          const chat = payload.new as Chat
+          let team: PostTeamBadge | null = null
+          if (chat.team_id) {
+            const { data } = await supabase
+              .from('team_profiles')
+              .select('id, name, logo_url')
+              .eq('id', chat.team_id)
+              .maybeSingle()
+            team = (data as PostTeamBadge | null) ?? null
+          }
+          setChats((prev) => (prev.some((c) => c.id === chat.id) ? prev : [...prev, { ...chat, team }]))
         }
       )
       .subscribe()
@@ -60,7 +96,6 @@ export default function ChatArea({ postId }: Props) {
     }
   }, [postId])
 
-  // 新着メッセージへスクロール
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
@@ -79,7 +114,8 @@ export default function ChatArea({ postId }: Props) {
       team_name: teamName.trim(),
       message: message.trim(),
     }
-    const { error: err } = await supabase.from('chats').insert(payload)
+    if (chatTeamId) payload.team_id = chatTeamId
+    const { error: err } = await createClient().from('chats').insert(payload)
     if (err) {
       setError('送信に失敗しました。もう一度お試しください。')
     } else {
@@ -105,12 +141,23 @@ export default function ChatArea({ postId }: Props) {
           <div ref={containerRef} className="divide-y divide-[var(--line)] max-h-96 overflow-y-auto">
             {chats.map((chat) => (
               <div key={chat.id} className="px-5 py-4">
-                <div className="flex items-baseline justify-between mb-1">
-                  <span className="font-semibold text-sm text-[var(--green)] flex items-center gap-1.5">
-                    <Logo size={16} />
-                    {chat.team_name}
-                  </span>
-                  <span className="text-xs text-[var(--ink-mute)]">{formatTime(chat.created_at)}</span>
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                  {chat.team ? (
+                    <Link
+                      href={`/teams/${chat.team.id}`}
+                      className="font-semibold text-sm text-[var(--green)] flex items-center gap-1.5 min-w-0 hover:underline"
+                    >
+                      <TeamAvatar name={chat.team.name} logoUrl={chat.team.logo_url} size={18} />
+                      <span className="truncate">{chat.team.name}</span>
+                      <RegisteredTeamBadge size="xs" />
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-sm text-[var(--green)] flex items-center gap-1.5 min-w-0">
+                      <Logo size={16} />
+                      <span className="truncate">{chat.team_name}</span>
+                    </span>
+                  )}
+                  <span className="text-xs text-[var(--ink-mute)] shrink-0">{formatTime(chat.created_at)}</span>
                 </div>
                 <p className="text-sm text-[var(--ink-sub)] leading-relaxed whitespace-pre-wrap">
                   {chat.message}
@@ -131,17 +178,30 @@ export default function ChatArea({ postId }: Props) {
           </p>
         )}
 
-        <div>
-          <label className="block text-xs text-[var(--ink-mute)] mb-1">チーム名 <span className="text-red-500">*</span></label>
-          <input
-            type="text"
-            value={teamName}
-            onChange={(e) => setTeamName(e.target.value)}
-            placeholder="例：〇〇ベースボールクラブ"
-            maxLength={50}
-            className="w-full border border-[var(--line)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]/40 transition"
+        {teams.length > 0 && (
+          <TeamChoice
+            label="どのチームとして送りますか？"
+            teams={teams}
+            value={chatTeamId}
+            onChange={chooseChatTeam}
+            guestLabel="チームとしてではなく送る"
+            compact
           />
-        </div>
+        )}
+
+        {!chatTeamId && (
+          <div>
+            <label className="block text-xs text-[var(--ink-mute)] mb-1">チーム名 <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              placeholder="例：〇〇ベースボールクラブ"
+              maxLength={50}
+              className="w-full border border-[var(--line)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green)]/40 transition"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-xs text-[var(--ink-mute)] mb-1">メッセージ <span className="text-red-500">*</span></label>

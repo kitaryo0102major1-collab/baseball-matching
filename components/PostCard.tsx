@@ -1,8 +1,10 @@
 import Link from 'next/link'
-import type { MatchPost } from '@/lib/types'
+import type { MatchPost, PostTeamBadge } from '@/lib/types'
 import FieldBadge from './FieldBadge'
 import LevelBadge from './LevelBadge'
 import MatchStatus from './MatchStatus'
+import TeamAvatar from './TeamAvatar'
+import RegisteredTeamBadge from './RegisteredTeamBadge'
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -12,7 +14,7 @@ function formatTime(t: string | null) {
 }
 
 interface Props {
-  post: MatchPost
+  post: MatchPost & { team?: PostTeamBadge | null }
 }
 
 export default function PostCard({ post }: Props) {
@@ -55,6 +57,13 @@ export default function PostCard({ post }: Props) {
             <LevelBadge level={post.level} size="xs" />
           </div>
           <h3 className="text-[15px] font-bold leading-relaxed line-clamp-2 text-[var(--ink)]">{post.title}</h3>
+          {post.team && (
+            <div className="flex items-center gap-1.5 mt-1 min-w-0">
+              <TeamAvatar name={post.team.name} logoUrl={post.team.logo_url} size={18} />
+              <span className="text-xs font-bold text-[var(--ink)] truncate">{post.team.name}</span>
+              <RegisteredTeamBadge size="xs" />
+            </div>
+          )}
           <p className="text-xs text-[var(--ink-sub)] mt-1">{metaLine}</p>
         </div>
       </div>

@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase'
-import type { MatchPost } from '@/lib/types'
+import { getPostPermissions } from '@/lib/postPermissions'
+import type { MatchPost, TeamProfile } from '@/lib/types'
+import DeletePostButton from '@/components/DeletePostButton'
+import PostTeamSection from '@/components/PostTeamSection'
+import RegisteredTeamBadge from '@/components/RegisteredTeamBadge'
+import TeamAvatar from '@/components/TeamAvatar'
 import FieldBadge from '@/components/FieldBadge'
 import LevelBadge from '@/components/LevelBadge'
 import MatchStatus from '@/components/MatchStatus'
@@ -39,6 +44,19 @@ export default async function PostDetailPage({ params }: Props) {
   if (error || !data) notFound()
 
   const post = data as MatchPost
+
+  const [permissions, team] = await Promise.all([
+    getPostPermissions(post),
+    post.team_id
+      ? supabase
+          .from('team_profiles')
+          .select('*')
+          .eq('id', post.team_id)
+          .maybeSingle()
+          .then(({ data }) => data as TeamProfile | null)
+      : Promise.resolve(null),
+  ])
+
   const startTime = formatTime(post.start_time)
   const endTime = formatTime(post.end_time)
   const timeText = startTime ? `${startTime}〜${endTime ?? '?'}` : '時間未定'
@@ -67,18 +85,27 @@ export default async function PostDetailPage({ params }: Props) {
               <LevelBadge level={post.level} />
             </div>
             <h1 className="text-[22px] font-black leading-relaxed text-[var(--ink)]">{post.title}</h1>
+            {team && (
+              <Link href={`/teams/${team.id}`} className="inline-flex items-center gap-1.5 mt-1 max-w-full">
+                <TeamAvatar name={team.name} logoUrl={team.logo_url} size={22} />
+                <span className="text-sm font-bold text-[var(--ink)] truncate hover:underline">{team.name}</span>
+                <RegisteredTeamBadge size="xs" />
+              </Link>
+            )}
           </div>
 
-          {/* 状態切り替え */}
-          <div className="px-6 py-5 border-b border-[var(--line)]">
-            <MatchStatusSegment postId={post.id} initialStatus={post.status} />
-            <Link
-              href={`/posts/${post.id}/edit`}
-              className="inline-block mt-3 text-[13px] font-bold text-[var(--clay)]"
-            >
-              募集内容を修正する →
-            </Link>
-          </div>
+          {/* 状態切り替え（ゲストの募集は誰でも、チームの募集はそのチームの管理者だけ） */}
+          {permissions.canEdit && (
+            <div className="px-6 py-5 border-b border-[var(--line)]">
+              <MatchStatusSegment postId={post.id} initialStatus={post.status} />
+              <div className="flex items-center justify-between gap-3 mt-3">
+                <Link href={`/posts/${post.id}/edit`} className="text-[13px] font-bold text-[var(--clay)]">
+                  募集内容を修正する →
+                </Link>
+                {permissions.canDelete && <DeletePostButton postId={post.id} />}
+              </div>
+            </div>
+          )}
 
           {/* 基本情報 */}
           <div className="px-6 py-2">
@@ -145,6 +172,8 @@ export default async function PostDetailPage({ params }: Props) {
             </div>
           )}
         </div>
+
+        {team && <PostTeamSection team={team} />}
 
         {/* 連絡先（モバイルのみ） */}
         <div className="lg:hidden">

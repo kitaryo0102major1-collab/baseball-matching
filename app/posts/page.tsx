@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import type { MatchPost, FieldStatus, Level } from '@/lib/types'
+import type { MatchPostWithTeam, FieldStatus, Level } from '@/lib/types'
+import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
 import { PREFECTURES } from '@/lib/prefectures'
 import PostCard from '@/components/PostCard'
 import PostMethodSheet from '@/components/PostMethodSheet'
@@ -36,7 +37,7 @@ function PostsContent() {
   const [sort, setSort] = useState<'date' | 'new'>('date')
   const [methodSheetOpen, setMethodSheetOpen] = useState(false)
 
-  const [posts, setPosts] = useState<MatchPost[]>([])
+  const [posts, setPosts] = useState<MatchPostWithTeam[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchPosts = useCallback(async () => {
@@ -44,14 +45,14 @@ function PostsContent() {
     const today = todayISO()
     const floor = date && date > today ? date : today
 
-    let query = supabase.from('match_posts').select('*').gte('game_date', floor)
+    let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).gte('game_date', floor)
     if (prefecture) query = query.eq('prefecture', prefecture)
     if (field) query = query.eq('field_status', field)
     if (level) query = query.eq('level', level)
     if (!showDecided) query = query.neq('status', '決定済み')
 
     const { data, error } = await query
-    if (!error && data) setPosts(data as MatchPost[])
+    if (!error && data) setPosts(data as MatchPostWithTeam[])
     setLoading(false)
   }, [prefecture, date, field, level, showDecided])
 

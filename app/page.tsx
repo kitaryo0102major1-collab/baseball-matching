@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import type { MatchPost } from '@/lib/types'
+import type { MatchPostWithTeam } from '@/lib/types'
+import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
 import PostCard from '@/components/PostCard'
 import { POPULAR_PREFECTURES } from '@/lib/prefectures'
 
@@ -62,7 +63,7 @@ function HowToAccordion() {
 
 export default function TopPage() {
   const [prefectureCounts, setPrefectureCounts] = useState<Record<string, number>>({})
-  const [recentPosts, setRecentPosts] = useState<MatchPost[]>([])
+  const [recentPosts, setRecentPosts] = useState<MatchPostWithTeam[]>([])
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -87,13 +88,13 @@ export default function TopPage() {
     async function loadRecent() {
       const { data } = await supabase
         .from('match_posts')
-        .select('*')
+        .select(POST_WITH_TEAM_SELECT)
         .eq('status', '募集中')
         .gte('game_date', today)
         .order('created_at', { ascending: false })
         .limit(2)
 
-      if (data) setRecentPosts(data as MatchPost[])
+      if (data) setRecentPosts(data as MatchPostWithTeam[])
     }
 
     loadCounts()

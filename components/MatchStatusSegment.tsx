@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import type { PostStatus } from '@/lib/types'
 
 interface Props {
@@ -29,9 +29,13 @@ export default function MatchStatusSegment({ postId, initialStatus }: Props) {
     setUpdating(true)
     setError(false)
 
-    const { error: updateError } = await supabase.from('match_posts').update({ status: next }).eq('id', postId)
+    const { data, error: updateError } = await createClient()
+      .from('match_posts')
+      .update({ status: next })
+      .eq('id', postId)
+      .select('id')
 
-    if (updateError) {
+    if (updateError || !data?.length) {
       setStatus(previous)
       setError(true)
       setUpdating(false)
