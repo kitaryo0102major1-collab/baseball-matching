@@ -25,7 +25,7 @@ export default function Header() {
                 : 'text-[var(--ink-sub)] hover:text-[var(--green)]'
             }`}
           >
-            相手を探す
+            募集を探す
           </Link>
           <Link
             href="/teams"

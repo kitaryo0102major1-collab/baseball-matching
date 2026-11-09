@@ -10,6 +10,8 @@ const zenKaku = Zen_Kaku_Gothic_New({
   weight: ['400', '500', '700', '900'],
   subsets: ['latin'],
   display: 'swap',
+  // 日本語フォントは分割ファイルが多く、preload すると1ページで数百リクエストになる
+  preload: false,
 })
 
 export const metadata: Metadata = {
