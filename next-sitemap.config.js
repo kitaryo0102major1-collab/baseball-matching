@@ -8,6 +8,8 @@ module.exports = {
     ],
   },
   exclude: ['/login', '/mypage', '/mypage/*', '/auth/*', '/invite/*'],
+  // 動的に描画するページは自動収集されないため、明示的に追加する
+  additionalPaths: async (config) => [await config.transform(config, '/teams')],
   changefreq: 'daily',
   priority: 0.7,
 }

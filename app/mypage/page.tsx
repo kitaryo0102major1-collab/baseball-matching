@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireMyTeams } from '@/lib/myTeam'
+import { todayJST } from '@/lib/dates'
+import type { MatchPost, TeamMember } from '@/lib/types'
+import MyTeamPosts, { type MyTeamPost } from '@/components/MyTeamPosts'
 import TeamAvatar from '@/components/TeamAvatar'
 import TeamSwitcher from '@/components/TeamSwitcher'
 import LevelBadge from '@/components/LevelBadge'
@@ -16,10 +19,31 @@ export default async function MyPage() {
   const { supabase, user, teams, selectedTeam: team } = await requireMyTeams()
   if (!team) redirect('/mypage/team/new')
 
-  const { count: memberCount } = await supabase
-    .from('team_members')
-    .select('user_id', { count: 'exact', head: true })
-    .eq('team_id', team.id)
+  // 取得より前の時刻を「前回開いた時刻」にする（取得中に届いたメッセージを次回の新着から漏らさない）
+  const renderedAt = new Date().toISOString()
+
+  const [{ data: membersData }, { data: postsData }] = await Promise.all([
+    supabase.from('team_members').select('user_id, display_name').eq('team_id', team.id),
+    supabase
+      .from('match_posts')
+      .select('*, chats(created_at)')
+      .eq('team_id', team.id)
+      .order('game_date', { ascending: true }),
+  ])
+
+  const members = (membersData ?? []) as Pick<TeamMember, 'user_id' | 'display_name'>[]
+  const today = todayJST()
+  const posts: MyTeamPost[] = ((postsData ?? []) as (MatchPost & { chats: { created_at: string }[] })[]).map(
+    ({ chats, ...post }) => ({
+      ...post,
+      posterName: members.find((m) => m.user_id === post.created_by)?.display_name ?? '元の管理者',
+      chatTimes: chats.map((c) => c.created_at),
+    })
+  )
+  const upcoming = posts.filter((p) => p.game_date >= today)
+  const open = upcoming.filter((p) => p.status === '募集中')
+  const decided = upcoming.filter((p) => p.status === '決定済み')
+  const past = posts.filter((p) => p.game_date < today).reverse()
 
   const area = [team.prefecture, team.area_detail].filter(Boolean).join(' ')
 
@@ -50,7 +74,7 @@ export default async function MyPage() {
           </div>
           <div className="flex justify-between gap-3">
             <span className="text-[var(--ink-mute)]">管理者</span>
-            <span className="font-bold text-[var(--ink-sub)]">{memberCount ?? 1}人</span>
+            <span className="font-bold text-[var(--ink-sub)]">{members.length}人</span>
           </div>
         </div>
 
@@ -75,6 +99,15 @@ export default async function MyPage() {
           管理者を管理（招待リンク）
         </Link>
       </div>
+
+      <MyTeamPosts
+        key={team.id}
+        teamId={team.id}
+        renderedAt={renderedAt}
+        open={open}
+        decided={decided}
+        past={past}
+      />
 
       <Link
         href="/mypage/team/new"

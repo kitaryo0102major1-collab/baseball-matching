@@ -28,6 +28,16 @@ export default function Header() {
             相手を探す
           </Link>
           <Link
+            href="/teams"
+            className={`text-sm px-3 py-1.5 rounded-md transition-colors ${
+              pathname === '/teams' || pathname.startsWith('/teams/')
+                ? 'bg-[var(--green-bg)] text-[var(--green)] font-medium'
+                : 'text-[var(--ink-sub)] hover:text-[var(--green)]'
+            }`}
+          >
+            チームを探す
+          </Link>
+          <Link
             href="/posts/new"
             className={`text-sm px-4 py-1.5 rounded-md font-medium transition-colors ${
               pathname === '/posts/new'

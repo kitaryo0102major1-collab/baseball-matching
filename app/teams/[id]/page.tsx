@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
+import { todayJST } from '@/lib/dates'
 import type { MatchPost, TeamProfile } from '@/lib/types'
 import PostCard from '@/components/PostCard'
 import TeamAvatar from '@/components/TeamAvatar'
@@ -44,7 +45,7 @@ export default async function TeamPage({ params }: Props) {
   const members = [team.member_count ? `${team.member_count}人` : null, team.age_range].filter(Boolean).join(' ／ ')
   const hasContact = team.contact_email || team.contact_phone || team.contact_other
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayJST()
   const { data: postsData } = await supabase
     .from('match_posts')
     .select('*')

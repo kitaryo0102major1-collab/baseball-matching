@@ -15,9 +15,10 @@ function formatTime(t: string | null) {
 
 interface Props {
   post: MatchPost & { team?: PostTeamBadge | null }
+  footer?: React.ReactNode
 }
 
-export default function PostCard({ post }: Props) {
+export default function PostCard({ post, footer }: Props) {
   const isDecided = post.status === '決定済み'
 
   const d = new Date(post.game_date)
@@ -65,6 +66,7 @@ export default function PostCard({ post }: Props) {
             </div>
           )}
           <p className="text-xs text-[var(--ink-sub)] mt-1">{metaLine}</p>
+          {footer}
         </div>
       </div>
     </Link>
