@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { todayJST } from '@/lib/dates'
@@ -10,12 +10,11 @@ import TeamFilters from '@/components/TeamFilters'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'チームを探す',
   description: '草野球マッチに登録しているチームを、都道府県・レベル・活動曜日から探せます。',
-  // layout の canonical（トップページ）を引き継がないよう、このページ自身を指定する
-  alternates: { canonical: '/teams' },
-}
+  path: '/teams',
+})
 
 type TeamListItem = Pick<
   TeamProfile,

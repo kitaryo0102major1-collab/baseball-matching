@@ -1,10 +1,11 @@
-import type { Metadata } from 'next'
 import Link from 'next/link'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'プライバシーポリシー',
   description: '草野球マッチのプライバシーポリシーです。',
-}
+  path: '/privacy',
+})
 
 const CONTACT_EMAIL = 'kitaryo.0102major1@gmail.com'
 

@@ -1,11 +1,17 @@
 import { supabase } from '@/lib/supabase'
 import { getPostPermissions } from '@/lib/postPermissions'
+import { pageMetadata } from '@/lib/seo'
 import type { MatchPost } from '@/lib/types'
 import PostForm from '@/components/PostForm'
 import { notFound, redirect } from 'next/navigation'
 
 interface Props {
   params: Promise<{ id: string }>
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { id } = await params
+  return pageMetadata({ title: '募集内容を修正する', path: `/posts/${id}/edit`, noindex: true })
 }
 
 export default async function EditPostPage({ params }: Props) {

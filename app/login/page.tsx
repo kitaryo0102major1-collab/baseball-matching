@@ -1,14 +1,11 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import GoogleLoginButton from '@/components/GoogleLoginButton'
 import Logo from '@/components/Logo'
 
-export const metadata: Metadata = {
-  title: 'ログイン',
-  robots: { index: false },
-}
+export const metadata = pageMetadata({ title: 'ログイン', path: '/login', noindex: true })
 
 interface Props {
   searchParams: Promise<{ error?: string }>

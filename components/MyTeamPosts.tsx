@@ -7,7 +7,8 @@ import PostMethodButton from './PostMethodButton'
 
 export type MyTeamPost = MatchPost & {
   posterName: string
-  chatTimes: string[]
+  messageCount: number
+  incomingChatTimes: string[]
 }
 
 interface Props {
@@ -92,13 +93,13 @@ export default function MyTeamPosts({ teamId, renderedAt, open, decided, past }:
 
 function PostMeta({ post, lastSeen }: { post: MyTeamPost; lastSeen: string | null }) {
   const since = lastSeen ? new Date(lastSeen).getTime() : null
-  const newCount = since === null ? 0 : post.chatTimes.filter((t) => new Date(t).getTime() > since).length
+  const newCount = since === null ? 0 : post.incomingChatTimes.filter((t) => new Date(t).getTime() > since).length
 
   return (
     <div className="mt-2 space-y-1.5">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md border border-[var(--line)] text-[var(--ink-sub)]">
-          メッセージ{post.chatTimes.length}件
+          メッセージ{post.messageCount}件
         </span>
         {newCount > 0 && (
           <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--clay)] text-white">新着{newCount}件</span>

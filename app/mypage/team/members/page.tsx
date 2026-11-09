@@ -1,14 +1,11 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireMyTeams } from '@/lib/myTeam'
 import type { TeamInvite, TeamMember } from '@/lib/types'
 import MembersManager from '@/components/MembersManager'
 
-export const metadata: Metadata = {
-  title: '管理者の管理',
-  robots: { index: false },
-}
+export const metadata = pageMetadata({ title: '管理者の管理', path: '/mypage/team/members', noindex: true })
 
 export default async function TeamMembersPage() {
   const { supabase, user, selectedTeam: team } = await requireMyTeams()

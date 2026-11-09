@@ -1,14 +1,9 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import TeamAvatar from '@/components/TeamAvatar'
 import GoogleLoginButton from '@/components/GoogleLoginButton'
 import AcceptInviteButton from '@/components/AcceptInviteButton'
-
-export const metadata: Metadata = {
-  title: 'チームの管理者に招待されています',
-  robots: { index: false },
-}
 
 interface InvitePreview {
   team_id: string
@@ -21,6 +16,11 @@ interface InvitePreview {
 
 interface Props {
   params: Promise<{ token: string }>
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { token } = await params
+  return pageMetadata({ title: 'チームの管理者に招待されています', path: `/invite/${token}`, noindex: true })
 }
 
 export default async function InvitePage({ params }: Props) {

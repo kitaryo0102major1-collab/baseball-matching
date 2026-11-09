@@ -16,6 +16,7 @@ import {
   type TeamInput,
 } from '@/lib/types'
 import { setSelectedTeamCookie } from '@/lib/selectedTeam'
+import { todayJST } from '@/lib/dates'
 import TeamAvatar from './TeamAvatar'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
@@ -36,7 +37,7 @@ const LEVEL_COLORS: Record<Level, string> = {
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-const CURRENT_YEAR = new Date().getFullYear()
+const CURRENT_YEAR = Number(todayJST().slice(0, 4))
 
 function FormLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (

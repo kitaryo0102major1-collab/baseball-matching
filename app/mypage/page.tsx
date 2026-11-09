@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireMyTeams } from '@/lib/myTeam'
@@ -10,10 +10,7 @@ import TeamSwitcher from '@/components/TeamSwitcher'
 import LevelBadge from '@/components/LevelBadge'
 import LogoutButton from '@/components/LogoutButton'
 
-export const metadata: Metadata = {
-  title: 'マイページ',
-  robots: { index: false },
-}
+export const metadata = pageMetadata({ title: 'マイページ', path: '/mypage', noindex: true })
 
 export default async function MyPage() {
   const { supabase, user, teams, selectedTeam: team } = await requireMyTeams()
@@ -26,20 +23,22 @@ export default async function MyPage() {
     supabase.from('team_members').select('user_id, display_name').eq('team_id', team.id),
     supabase
       .from('match_posts')
-      .select('*, chats(created_at)')
+      .select('*, chats(created_at, team_id)')
       .eq('team_id', team.id)
       .order('game_date', { ascending: true }),
   ])
 
   const members = (membersData ?? []) as Pick<TeamMember, 'user_id' | 'display_name'>[]
   const today = todayJST()
-  const posts: MyTeamPost[] = ((postsData ?? []) as (MatchPost & { chats: { created_at: string }[] })[]).map(
-    ({ chats, ...post }) => ({
-      ...post,
-      posterName: members.find((m) => m.user_id === post.created_by)?.display_name ?? '元の管理者',
-      chatTimes: chats.map((c) => c.created_at),
-    })
-  )
+  const posts: MyTeamPost[] = (
+    (postsData ?? []) as (MatchPost & { chats: { created_at: string; team_id: string | null }[] })[]
+  ).map(({ chats, ...post }) => ({
+    ...post,
+    posterName: members.find((m) => m.user_id === post.created_by)?.display_name ?? '元の管理者',
+    messageCount: chats.length,
+    // 自分たちのチームとして送ったメッセージは新着に数えない
+    incomingChatTimes: chats.filter((c) => c.team_id !== team.id).map((c) => c.created_at),
+  }))
   const upcoming = posts.filter((p) => p.game_date >= today)
   const open = upcoming.filter((p) => p.status === '募集中')
   const decided = upcoming.filter((p) => p.status === '決定済み')

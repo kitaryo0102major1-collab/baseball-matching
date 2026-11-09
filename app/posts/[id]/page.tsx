@@ -1,4 +1,8 @@
+import type { Metadata } from 'next'
+import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
+import { todayJST } from '@/lib/dates'
+import { pageMetadata, truncateText } from '@/lib/seo'
 import { getPostPermissions } from '@/lib/postPermissions'
 import type { MatchPost, TeamProfile } from '@/lib/types'
 import DeletePostButton from '@/components/DeletePostButton'
@@ -33,36 +37,59 @@ function formatTime(t: string | null) {
   return t.slice(0, 5)
 }
 
+const getPost = cache(async (id: string) => {
+  const { data } = await supabase.from('match_posts').select('*').eq('id', id).maybeSingle()
+  return data as MatchPost | null
+})
+
+const getPostTeam = cache(async (teamId: string) => {
+  const { data } = await supabase.from('team_profiles').select('*').eq('id', teamId).maybeSingle()
+  return data as TeamProfile | null
+})
+
 interface Props {
   params: Promise<{ id: string }>
 }
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const post = await getPost(id)
+  if (!post) return { title: '募集が見つかりません', robots: { index: false } }
+
+  const team = post.team_id ? await getPostTeam(post.team_id) : null
+  const place = [post.prefecture, post.area_detail, post.venue_name].filter(Boolean).join(' ')
+  const startTime = formatTime(post.start_time)
+  const summary = [
+    `${formatDateWithWeekday(post.game_date)}${startTime ? ` ${startTime}〜` : ''}`,
+    place,
+    team?.name,
+    post.status === '決定済み' ? '対戦相手は決定済み' : '草野球の対戦相手を募集中',
+    `グラウンド${post.field_status === 'ok' ? 'あり' : 'なし'}`,
+    `Lv.${post.level}`,
+  ]
+    .filter(Boolean)
+    .join('・')
+  const description = post.description ? `${summary}。${truncateText(post.description, 60)}` : `${summary}。`
+
+  return pageMetadata({ title: post.title, description, path: `/posts/${post.id}` })
+}
+
 export default async function PostDetailPage({ params }: Props) {
   const { id } = await params
-  const { data, error } = await supabase.from('match_posts').select('*').eq('id', id).single()
+  const post = await getPost(id)
 
-  if (error || !data) notFound()
-
-  const post = data as MatchPost
+  if (!post) notFound()
 
   const [permissions, team] = await Promise.all([
     getPostPermissions(post),
-    post.team_id
-      ? supabase
-          .from('team_profiles')
-          .select('*')
-          .eq('id', post.team_id)
-          .maybeSingle()
-          .then(({ data }) => data as TeamProfile | null)
-      : Promise.resolve(null),
+    post.team_id ? getPostTeam(post.team_id) : Promise.resolve(null),
   ])
 
   const startTime = formatTime(post.start_time)
   const endTime = formatTime(post.end_time)
   const timeText = startTime ? `${startTime}〜${endTime ?? '?'}` : '時間未定'
 
-  const today = new Date().toISOString().slice(0, 10)
-  const isPastDate = post.game_date < today
+  const isPastDate = post.game_date < todayJST()
 
   const placeLine = [post.prefecture, post.area_detail].filter(Boolean).join(' ')
 

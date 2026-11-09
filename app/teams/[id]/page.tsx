@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
 import { todayJST } from '@/lib/dates'
+import { pageMetadata, truncateText } from '@/lib/seo'
 import type { MatchPost, TeamProfile } from '@/lib/types'
 import PostCard from '@/components/PostCard'
 import TeamAvatar from '@/components/TeamAvatar'
@@ -28,11 +29,14 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const team = await getTeam(id)
-  if (!team) return { title: 'チームが見つかりません' }
-  return {
-    title: team.name,
-    description: team.description?.slice(0, 120) ?? `${team.prefecture}で活動する草野球チーム「${team.name}」のチームページです。`,
-  }
+  if (!team) return { title: 'チームが見つかりません', robots: { index: false } }
+
+  const area = [team.prefecture, team.area_detail].filter(Boolean).join(' ')
+  const days = team.activity_days.length ? `活動日は${team.activity_days.join('・')}。` : ''
+  const summary = `${area}で活動する草野球チーム「${team.name}」（Lv.${team.level}）のチームページです。${days}`
+  const description = team.description ? `${summary}${truncateText(team.description, 60)}` : summary
+
+  return pageMetadata({ title: team.name, description, path: `/teams/${team.id}` })
 }
 
 export default async function TeamPage({ params }: Props) {
