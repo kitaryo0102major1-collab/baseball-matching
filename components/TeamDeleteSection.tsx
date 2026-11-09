@@ -41,7 +41,7 @@ export default function TeamDeleteSection({ teamId, teamName }: Props) {
     <section className="border border-[#EBC9BC] rounded-2xl p-5 space-y-3">
       <h2 className="text-base font-bold text-[#A32D2D]">チームを削除</h2>
       <p className="text-sm text-[var(--ink-sub)] leading-relaxed">
-        チームページ、管理者、招待リンクがすべて削除され、元に戻せません。ほかの管理者も管理できなくなります。
+        チームページ、管理者、招待リンク、助っ人・メンバー募集がすべて削除され、元に戻せません。ほかの管理者も管理できなくなります。
       </p>
       <button
         type="button"
@@ -56,7 +56,7 @@ export default function TeamDeleteSection({ teamId, teamName }: Props) {
         title="チームを削除しますか？"
         description={
           <>
-            「{teamName}」を削除します。チームページ、管理者、招待リンクはすべて消え、元に戻せません。
+            「{teamName}」を削除します。チームページ、管理者、招待リンク、助っ人・メンバー募集はすべて消え、元に戻せません。
           </>
         }
         confirmLabel="削除する"

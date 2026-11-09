@@ -3,19 +3,30 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { PostStatus } from '@/lib/types'
+import type { PostStatus, PostType } from '@/lib/types'
 
 interface Props {
   postId: string
   initialStatus: PostStatus
+  postType?: PostType
 }
 
-const OPTIONS: { value: PostStatus; label: string; desc: string }[] = [
-  { value: '募集中', label: '募集中', desc: '相手を探しています' },
-  { value: '決定済み', label: '決定済み', desc: '対戦相手が決まりました' },
-]
+const OPTIONS: Record<PostType, { value: PostStatus; label: string; desc: string }[]> = {
+  match: [
+    { value: '募集中', label: '募集中', desc: '相手を探しています' },
+    { value: '決定済み', label: '決定済み', desc: '対戦相手が決まりました' },
+  ],
+  helper: [
+    { value: '募集中', label: '募集中', desc: '助っ人を探しています' },
+    { value: '決定済み', label: '決定済み', desc: '助っ人が決まりました' },
+  ],
+  member: [
+    { value: '募集中', label: '募集中', desc: 'メンバーを探しています' },
+    { value: '募集終了', label: '募集終了', desc: '募集を締め切りました' },
+  ],
+}
 
-export default function MatchStatusSegment({ postId, initialStatus }: Props) {
+export default function MatchStatusSegment({ postId, initialStatus, postType = 'match' }: Props) {
   const router = useRouter()
   const [status, setStatus] = useState<PostStatus>(initialStatus)
   const [updating, setUpdating] = useState(false)
@@ -29,9 +40,13 @@ export default function MatchStatusSegment({ postId, initialStatus }: Props) {
     setUpdating(true)
     setError(false)
 
+    // 終了したメンバー募集を再開するときは、掲載期間も今から数え直す
+    const changes =
+      postType === 'member' && next === '募集中' ? { status: next, renewed_at: new Date().toISOString() } : { status: next }
+
     const { data, error: updateError } = await createClient()
       .from('match_posts')
-      .update({ status: next })
+      .update(changes)
       .eq('id', postId)
       .select('id')
 
@@ -52,7 +67,7 @@ export default function MatchStatusSegment({ postId, initialStatus }: Props) {
         <span className="text-xs text-[var(--ink-mute)]">いつでも切り替えられます</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {OPTIONS.map((opt) => {
+        {OPTIONS[postType].map((opt) => {
           const selected = status === opt.value
           const selectedBg = opt.value === '募集中' ? 'bg-[var(--clay)]' : 'bg-[#5C5A52]'
           return (

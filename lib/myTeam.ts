@@ -4,10 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { SELECTED_TEAM_COOKIE } from '@/lib/selectedTeam'
 import type { Team } from '@/lib/types'
 
-export async function requireMyTeams() {
+export async function getMyTeams() {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) redirect('/login')
+  if (!auth.user) return { supabase, user: null, teams: [] as Team[], selectedTeam: null }
 
   const { data } = await supabase.from('teams').select('*').order('created_at', { ascending: true })
   const teams = (data ?? []) as Team[]
@@ -17,4 +17,10 @@ export async function requireMyTeams() {
   const selectedTeam = teams.find((t) => t.id === selectedId) ?? teams[0] ?? null
 
   return { supabase, user: auth.user, teams, selectedTeam }
+}
+
+export async function requireMyTeams() {
+  const result = await getMyTeams()
+  if (!result.user) redirect('/login')
+  return { ...result, user: result.user }
 }

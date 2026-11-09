@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireMyTeams } from '@/lib/myTeam'
 import { todayJST } from '@/lib/dates'
+import { memberVisibility } from '@/lib/postRules'
 import type { MatchPost, TeamMember } from '@/lib/types'
 import MyTeamPosts, { type MyTeamPost } from '@/components/MyTeamPosts'
 import TeamAvatar from '@/components/TeamAvatar'
@@ -25,7 +26,7 @@ export default async function MyPage() {
       .from('match_posts')
       .select('*, chats(created_at, team_id)')
       .eq('team_id', team.id)
-      .order('game_date', { ascending: true }),
+      .order('game_date', { ascending: true, nullsFirst: false }),
   ])
 
   const members = (membersData ?? []) as Pick<TeamMember, 'user_id' | 'display_name'>[]
@@ -39,10 +40,28 @@ export default async function MyPage() {
     // 自分たちのチームとして送ったメッセージは新着に数えない
     incomingChatTimes: chats.filter((c) => c.team_id !== team.id).map((c) => c.created_at),
   }))
-  const upcoming = posts.filter((p) => p.game_date >= today)
-  const open = upcoming.filter((p) => p.status === '募集中')
-  const decided = upcoming.filter((p) => p.status === '決定済み')
-  const past = posts.filter((p) => p.game_date < today).reverse()
+  const needsRenewal: MyTeamPost[] = []
+  const open: MyTeamPost[] = []
+  const decided: MyTeamPost[] = []
+  const past: MyTeamPost[] = []
+  for (const post of posts) {
+    if (post.post_type === 'member') {
+      const visibility = memberVisibility(post)
+      if (visibility === 'expired') continue
+      if (post.status === '募集終了') past.push(post)
+      else if (visibility === 'unlisted') needsRenewal.push(post)
+      else open.push(post)
+    } else if ((post.game_date ?? '') < today) {
+      past.push(post)
+    } else if (post.status === '募集中') {
+      open.push(post)
+    } else {
+      decided.push(post)
+    }
+  }
+  // メンバー募集には試合日がないので、投稿日で並べる
+  const sortDate = (p: MyTeamPost) => p.game_date ?? p.created_at.slice(0, 10)
+  past.sort((a, b) => sortDate(b).localeCompare(sortDate(a)))
 
   const area = [team.prefecture, team.area_detail].filter(Boolean).join(' ')
 
@@ -103,6 +122,7 @@ export default async function MyPage() {
         key={team.id}
         teamId={team.id}
         renderedAt={renderedAt}
+        needsRenewal={needsRenewal}
         open={open}
         decided={decided}
         past={past}

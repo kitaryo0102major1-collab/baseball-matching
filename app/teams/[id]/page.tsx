@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
-import { todayJST } from '@/lib/dates'
+import { openPostsOrFilter } from '@/lib/postRules'
 import { pageMetadata, truncateText } from '@/lib/seo'
 import type { MatchPost, TeamProfile } from '@/lib/types'
 import PostCard from '@/components/PostCard'
@@ -49,14 +49,13 @@ export default async function TeamPage({ params }: Props) {
   const members = [team.member_count ? `${team.member_count}人` : null, team.age_range].filter(Boolean).join(' ／ ')
   const hasContact = team.contact_email || team.contact_phone || team.contact_other
 
-  const today = todayJST()
   const { data: postsData } = await supabase
     .from('match_posts')
     .select('*')
     .eq('team_id', team.id)
     .eq('status', '募集中')
-    .gte('game_date', today)
-    .order('game_date', { ascending: true })
+    .or(openPostsOrFilter())
+    .order('game_date', { ascending: true, nullsFirst: false })
   const openPosts = (postsData ?? []) as MatchPost[]
 
   return (

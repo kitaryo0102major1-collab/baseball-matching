@@ -21,11 +21,13 @@ export async function GET(request: NextRequest) {
   const next = cookieStore.get(AUTH_NEXT_COOKIE)?.value
   cookieStore.delete(AUTH_NEXT_COOKIE)
   const nextPath = next ? decodeURIComponent(next) : null
-  if (isSafeNextPath(nextPath)) {
-    return NextResponse.redirect(`${origin}${nextPath}`)
-  }
 
   const { count } = await supabase.from('teams').select('id', { count: 'exact', head: true })
+
+  // 助っ人・メンバー募集の案内から来た人は、チームがまだなければ先に登録してもらう
+  if (isSafeNextPath(nextPath) && (count || !nextPath.startsWith('/posts/new/'))) {
+    return NextResponse.redirect(`${origin}${nextPath}`)
+  }
 
   return NextResponse.redirect(`${origin}${count ? '/mypage' : '/mypage/team/new'}`)
 }

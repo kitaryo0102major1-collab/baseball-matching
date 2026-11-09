@@ -8,14 +8,17 @@ interface Props {
   teams: PostTeamBadge[]
   value: string
   onChange: (teamId: string) => void
-  guestLabel: string
+  guestLabel?: string
   hint?: string
   compact?: boolean
 }
 
-// value が '' のときは「チームとしてではなく」
+// value が '' のときは「チームとしてではなく」。guestLabel を省略するとその選択肢は出さない
 export default function TeamChoice({ label, teams, value, onChange, guestLabel, hint, compact }: Props) {
-  const options = [...teams.map((t) => ({ id: t.id, name: t.name, logo: t.logo_url })), { id: '', name: guestLabel, logo: null }]
+  const options = [
+    ...teams.map((t) => ({ id: t.id, name: t.name, logo: t.logo_url })),
+    ...(guestLabel ? [{ id: '', name: guestLabel, logo: null }] : []),
+  ]
 
   return (
     <div>

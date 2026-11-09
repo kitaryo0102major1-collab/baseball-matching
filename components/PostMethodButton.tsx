@@ -15,7 +15,7 @@ export default function PostMethodButton() {
       >
         募集する（チーム情報を自動入力）
       </button>
-      <PostMethodSheet open={open} onClose={() => setOpen(false)} />
+      <PostMethodSheet open={open} onClose={() => setOpen(false)} showTeamTypes />
     </>
   )
 }

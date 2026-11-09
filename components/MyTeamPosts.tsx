@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import type { MatchPost } from '@/lib/types'
+import MemberRenewCard from './MemberRenewCard'
 import PostCard from './PostCard'
 import PostMethodButton from './PostMethodButton'
 
@@ -14,6 +16,7 @@ export type MyTeamPost = MatchPost & {
 interface Props {
   teamId: string
   renderedAt: string
+  needsRenewal: MyTeamPost[]
   open: MyTeamPost[]
   decided: MyTeamPost[]
   past: MyTeamPost[]
@@ -37,7 +40,7 @@ function writeLastSeen(teamId: string, value: string) {
   } catch {}
 }
 
-export default function MyTeamPosts({ teamId, renderedAt, open, decided, past }: Props) {
+export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, decided, past }: Props) {
   const [lastSeen, setLastSeen] = useState<string | null>(null)
   const handled = useRef(false)
 
@@ -50,7 +53,7 @@ export default function MyTeamPosts({ teamId, renderedAt, open, decided, past }:
     if (!previous || new Date(renderedAt) > new Date(previous)) writeLastSeen(teamId, renderedAt)
   }, [teamId, renderedAt])
 
-  if (open.length + decided.length + past.length === 0) {
+  if (needsRenewal.length + open.length + decided.length + past.length === 0) {
     return (
       <section className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 space-y-4 text-center">
         <p className="text-sm font-bold text-[var(--ink)]">まだ募集がありません</p>
@@ -68,6 +71,9 @@ export default function MyTeamPosts({ teamId, renderedAt, open, decided, past }:
   return (
     <>
       <PostMethodButton />
+      {needsRenewal.map((post) => (
+        <MemberRenewCard key={post.id} post={post} />
+      ))}
       {sections.map(
         ({ title, posts }) =>
           posts.length > 0 && (
@@ -77,11 +83,17 @@ export default function MyTeamPosts({ teamId, renderedAt, open, decided, past }:
               </h2>
               <div className="space-y-3">
                 {posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    footer={<PostMeta post={post} lastSeen={lastSeen} />}
-                  />
+                  <div key={post.id}>
+                    <PostCard post={post} footer={<PostMeta post={post} lastSeen={lastSeen} />} />
+                    {title === '決定済み' && post.post_type === 'match' && (
+                      <Link
+                        href={`/posts/new/helper?from=${post.id}`}
+                        className="block text-center mt-2 border border-[var(--clay)] text-[var(--clay)] font-bold py-2.5 rounded-xl text-sm hover:bg-[var(--bg)] transition-colors"
+                      >
+                        この試合の助っ人を募集する
+                      </Link>
+                    )}
+                  </div>
                 ))}
               </div>
             </section>

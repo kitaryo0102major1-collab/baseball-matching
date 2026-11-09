@@ -12,9 +12,9 @@ export async function isTeamManager(teamId: string): Promise<boolean> {
   return data === true
 }
 
-// ゲストの募集は誰でも修正・状態変更できる。チームの募集はそのチームの管理者だけ。
-export async function getPostPermissions(post: Pick<MatchPost, 'team_id'>) {
-  if (!post.team_id) return { canEdit: true, canDelete: false }
+// ゲストの対戦相手募集は誰でも修正・状態変更できる。チームの募集はそのチームの管理者だけ。
+export async function getPostPermissions(post: Pick<MatchPost, 'team_id' | 'post_type'>) {
+  if (!post.team_id) return { canEdit: post.post_type === 'match', canDelete: false }
   const manager = await isTeamManager(post.team_id)
   return { canEdit: manager, canDelete: manager }
 }

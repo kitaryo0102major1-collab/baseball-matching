@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { MatchPost } from '@/lib/types'
+import type { MatchPost, PostType } from '@/lib/types'
 import BottomSheet from './BottomSheet'
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
@@ -27,9 +27,18 @@ interface ContactRowData {
 export default function ContactSheet({ open, onClose, post }: Props) {
   const [copied, setCopied] = useState(false)
 
-  const dateLabel = formatShortDate(post.game_date)
+  const dateLabel = post.game_date ? formatShortDate(post.game_date) : ''
   const timeLabel = post.start_time ? ` ${post.start_time.slice(0, 5)}〜` : ''
-  const template = `はじめまして。◯◯（チーム名）です。\n${dateLabel}${timeLabel}の募集を見てご連絡しました。\nうちはLv.${post.level}、当日は◯人で伺えます。\nよろしくお願いします。`
+  const templates: Record<PostType, string> = {
+    match: `はじめまして。◯◯（チーム名）です。\n${dateLabel}${timeLabel}の募集を見てご連絡しました。\nうちはLv.${post.level}、当日は◯人で伺えます。\nよろしくお願いします。`,
+    helper: `はじめまして。◯◯（お名前）と申します。\n${dateLabel}${timeLabel}の助っ人募集を見てご連絡しました。\n守れるポジションは◯◯、野球歴は◯年です。\n参加できますので、よろしくお願いします。`,
+    member: `はじめまして。◯◯（お名前）と申します。\nメンバー募集を見てご連絡しました。\n年齢は◯歳、野球歴は◯年です。\n${post.trial_ok === false ? '入部を希望しています。' : 'まずは体験参加を希望しています。'}\nよろしくお願いします。`,
+  }
+  const template = templates[post.post_type]
+  const hint =
+    post.post_type === 'match'
+      ? 'チーム名・希望日程・レベルを添えると返信が早くなります。'
+      : 'お名前・ポジション・野球歴を添えると返信が早くなります。'
 
   async function handleCopy() {
     try {
@@ -67,9 +76,7 @@ export default function ContactSheet({ open, onClose, post }: Props) {
   return (
     <BottomSheet open={open} onClose={onClose}>
       <p className="font-bold text-[var(--ink)] mb-1">連絡方法を選ぶ</p>
-      <p className="text-xs text-[var(--ink-mute)] mb-4">
-        チーム名・希望日程・レベルを添えると返信が早くなります。
-      </p>
+      <p className="text-xs text-[var(--ink-mute)] mb-4">{hint}</p>
 
       <div className="bg-[#F1EEE4] rounded-xl p-3.5 mb-4">
         <p className="text-sm text-[var(--ink)] whitespace-pre-line leading-relaxed">{template}</p>

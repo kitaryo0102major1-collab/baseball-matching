@@ -1,17 +1,41 @@
 export type FieldStatus = 'ok' | 'ng'
 export type Level = 'A+' | 'A' | 'B' | 'C'
-export type PostStatus = '募集中' | '決定済み'
+export type PostStatus = '募集中' | '決定済み' | '募集終了'
+export type PostType = 'match' | 'helper' | 'member'
+
+export const POST_TYPE_LABELS: Record<PostType, string> = {
+  match: '対戦相手',
+  helper: '助っ人',
+  member: 'メンバー',
+}
+
+export const POSITIONS = ['投手', '捕手', '内野手', '外野手', 'どこでも'] as const
+export const EXPERIENCES = ['経験者のみ', '未経験OK', '問わない'] as const
+
+export type Position = (typeof POSITIONS)[number]
+export type Experience = (typeof EXPERIENCES)[number]
 
 export interface MatchPost {
   id: string
   title: string
-  field_status: FieldStatus
+  post_type: PostType
+  field_status: FieldStatus | null
   venue_name: string | null
   area_detail: string | null
   prefecture: string | null
   level: Level
   status: PostStatus
-  game_date: string
+  game_date: string | null
+  positions: Position[] | null
+  headcount: string | null
+  experience: Experience | null
+  fee: string | null
+  opponent_name: string | null
+  age_condition: string | null
+  activity_note: string | null
+  trial_ok: boolean | null
+  renewed_at: string
+  source_post_id: string | null
   start_time: string | null
   end_time: string | null
   description: string | null
@@ -126,12 +150,23 @@ export type MyTeamForPost = Pick<
 
 export interface MatchPostInsert {
   title: string
-  field_status: FieldStatus
+  post_type?: PostType
+  field_status?: FieldStatus | null
   venue_name?: string | null
   area_detail?: string | null
   prefecture: string
   level: Level
-  game_date: string
+  game_date?: string | null
+  positions?: Position[]
+  headcount?: string | null
+  experience?: Experience
+  fee?: string | null
+  opponent_name?: string | null
+  age_condition?: string | null
+  activity_note?: string | null
+  trial_ok?: boolean | null
+  renewed_at?: string
+  source_post_id?: string | null
   start_time?: string | null
   end_time?: string | null
   description?: string | null

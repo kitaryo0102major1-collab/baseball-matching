@@ -1,14 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { todayJST } from '@/lib/dates'
-import type { MatchPostWithTeam, FieldStatus, Level } from '@/lib/types'
+import { POST_TYPE_LABELS, type MatchPostWithTeam, type FieldStatus, type Level, type PostType } from '@/lib/types'
 import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
+import { postListPath, syncListUrl } from '@/lib/postRules'
 import { PREFECTURES } from '@/lib/prefectures'
 import PostCard from '@/components/PostCard'
 import PostMethodSheet from '@/components/PostMethodSheet'
+import TeamTypePosts from '@/components/TeamTypePosts'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
 
@@ -20,9 +23,8 @@ function chipClass(active: boolean) {
   }`
 }
 
-function PostsContent() {
+function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') ?? '')
   const [date, setDate] = useState(searchParams.get('date') ?? '')
@@ -32,7 +34,6 @@ function PostsContent() {
   const [showDecided, setShowDecided] = useState(searchParams.get('decided') !== '0')
   const [moreOpen, setMoreOpen] = useState(false)
   const [sort, setSort] = useState<'date' | 'new'>('date')
-  const [methodSheetOpen, setMethodSheetOpen] = useState(false)
 
   const [posts, setPosts] = useState<MatchPostWithTeam[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,7 +43,7 @@ function PostsContent() {
     const today = todayJST()
     const floor = date && date > today ? date : today
 
-    let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).gte('game_date', floor)
+    let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).eq('post_type', 'match').gte('game_date', floor)
     if (prefecture) query = query.eq('prefecture', prefecture)
     if (field) query = query.eq('field_status', field)
     if (level) query = query.eq('level', level)
@@ -65,9 +66,8 @@ function PostsContent() {
     if (level) params.set('level', level)
     if (weekend) params.set('weekend', '1')
     if (!showDecided) params.set('decided', '0')
-    const qs = params.toString()
-    router.replace(qs ? `/posts?${qs}` : '/posts')
-  }, [prefecture, date, field, level, weekend, showDecided, router])
+    syncListUrl(params)
+  }, [prefecture, date, field, level, weekend, showDecided])
 
   function resetAll() {
     setPrefecture('')
@@ -87,7 +87,7 @@ function PostsContent() {
     const bDecided = b.status === '決定済み'
     if (aDecided !== bDecided) return aDecided ? 1 : -1
     if (sort === 'new') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    return a.game_date.localeCompare(b.game_date)
+    return (a.game_date ?? '').localeCompare(b.game_date ?? '')
   })
 
   const dateLabel = date
@@ -171,18 +171,7 @@ function PostsContent() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-2 lg:pt-8 lg:px-0 lg:mb-2 lg:pb-0">
-        <h1 className="text-lg font-bold text-[var(--ink)]">募集一覧</h1>
-        <button
-          type="button"
-          onClick={() => setMethodSheetOpen(true)}
-          className="shrink-0 bg-[var(--green)] hover:opacity-90 text-white text-sm font-bold px-4 py-2 rounded-lg transition-opacity"
-        >
-          募集する
-        </button>
-      </div>
-
+    <>
       {/* モバイル用フィルターバー */}
       <div className="lg:hidden bg-[var(--surface)] border-b border-[var(--line)] px-4 pt-2.5 pb-3 space-y-2">
         <div className="grid grid-cols-2 gap-2">
@@ -309,7 +298,7 @@ function PostsContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMethodSheetOpen(true)}
+                  onClick={onOpenSheet}
                   className="w-full bg-[var(--green-bg)] border-[1.5px] border-[var(--green)] text-[var(--green)] text-sm font-bold py-2.5 rounded-xl"
                 >
                   この条件で自分の募集を出す
@@ -325,6 +314,60 @@ function PostsContent() {
           )}
         </div>
       </div>
+    </>
+  )
+}
+
+const TAB_ACTIVE: Record<PostType, string> = {
+  match: 'border-[var(--green)] text-[var(--green)]',
+  helper: 'border-[var(--clay)] text-[var(--clay)]',
+  member: 'border-[#1177dd] text-[#1177dd]',
+}
+
+function PostsContent() {
+  const searchParams = useSearchParams()
+  const typeParam = searchParams.get('type')
+  const type: PostType = typeParam === 'helper' || typeParam === 'member' ? typeParam : 'match'
+  const [methodSheetOpen, setMethodSheetOpen] = useState(false)
+
+  const postButtonClass =
+    'shrink-0 bg-[var(--green)] hover:opacity-90 text-white text-sm font-bold px-4 py-2 rounded-lg transition-opacity'
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-2 lg:pt-8 lg:px-0 lg:mb-2 lg:pb-0">
+        <h1 className="text-lg font-bold text-[var(--ink)]">募集一覧</h1>
+        {type === 'match' ? (
+          <button type="button" onClick={() => setMethodSheetOpen(true)} className={postButtonClass}>
+            募集する
+          </button>
+        ) : (
+          <Link href={`/posts/new/${type}`} className={postButtonClass}>
+            募集する
+          </Link>
+        )}
+      </div>
+
+      <nav aria-label="募集の種類" className="grid grid-cols-3 border-b border-[var(--line)] bg-[var(--surface)] lg:bg-transparent">
+        {(['match', 'helper', 'member'] as const).map((t) => (
+          <Link
+            key={t}
+            href={postListPath(t)}
+            aria-current={t === type ? 'page' : undefined}
+            className={`text-center text-sm py-2.5 border-b-2 -mb-px ${
+              t === type ? `font-bold ${TAB_ACTIVE[t]}` : 'border-transparent text-[var(--ink-mute)]'
+            }`}
+          >
+            {POST_TYPE_LABELS[t]}
+          </Link>
+        ))}
+      </nav>
+
+      {type === 'match' ? (
+        <MatchPosts onOpenSheet={() => setMethodSheetOpen(true)} />
+      ) : (
+        <TeamTypePosts key={type} type={type} />
+      )}
 
       <PostMethodSheet open={methodSheetOpen} onClose={() => setMethodSheetOpen(false)} />
     </div>

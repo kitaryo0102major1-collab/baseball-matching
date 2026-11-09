@@ -1,7 +1,7 @@
 import { pageMetadata } from '@/lib/seo'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { todayJST } from '@/lib/dates'
+import { openPostsOrFilter } from '@/lib/postRules'
 import { PREFECTURES } from '@/lib/prefectures'
 import { ACTIVITY_DAYS, type ActivityDay, type Level, type TeamProfile } from '@/lib/types'
 import LevelBadge from '@/components/LevelBadge'
@@ -65,7 +65,7 @@ export default async function TeamsPage({ searchParams }: Props) {
       .select('team_id')
       .not('team_id', 'is', null)
       .eq('status', '募集中')
-      .gte('game_date', todayJST()),
+      .or(openPostsOrFilter()),
   ])
   // 取得に失敗したのに「0件」と表示しないよう、エラー画面に任せる
   if (teamsResult.error) throw teamsResult.error

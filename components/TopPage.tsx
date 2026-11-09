@@ -73,6 +73,7 @@ export default function TopPage() {
       const { data } = await supabase
         .from('match_posts')
         .select('prefecture')
+        .eq('post_type', 'match')
         .eq('status', '募集中')
         .gte('game_date', today)
         .in('prefecture', POPULAR_PREFECTURES)
@@ -90,6 +91,7 @@ export default function TopPage() {
       const { data } = await supabase
         .from('match_posts')
         .select(POST_WITH_TEAM_SELECT)
+        .eq('post_type', 'match')
         .eq('status', '募集中')
         .gte('game_date', today)
         .order('created_at', { ascending: false })
@@ -123,11 +125,11 @@ export default function TopPage() {
         </section>
 
         <div className="mt-8 lg:mt-0 space-y-4">
-          {/* 相手を探すカード */}
+          {/* 募集を探すカード */}
           <section className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-2.5 h-2.5 rounded-full bg-[var(--green)]" />
-              <h2 className="font-bold text-[var(--ink)]">相手を探す</h2>
+              <h2 className="font-bold text-[var(--ink)]">募集を探す</h2>
             </div>
 
             {POPULAR_PREFECTURES.some((p) => prefectureCounts[p]) && (
@@ -144,12 +146,26 @@ export default function TopPage() {
               </div>
             )}
 
-            <Link
-              href="/posts"
-              className="block text-center border-2 border-[var(--green)] text-[var(--green)] font-semibold py-2.5 rounded-xl hover:bg-[var(--green-bg)] transition-colors"
-            >
-              すべての募集を見る
-            </Link>
+            <div className="grid grid-cols-3 gap-2">
+              <Link
+                href="/posts"
+                className="text-center border-2 border-[var(--green)] text-[var(--green)] text-sm font-semibold py-2.5 rounded-xl hover:bg-[var(--green-bg)] transition-colors"
+              >
+                対戦相手
+              </Link>
+              <Link
+                href="/posts?type=helper"
+                className="text-center border-2 border-[var(--clay)] text-[var(--clay)] text-sm font-semibold py-2.5 rounded-xl hover:bg-[var(--bg)] transition-colors"
+              >
+                助っ人
+              </Link>
+              <Link
+                href="/posts?type=member"
+                className="text-center border-2 border-[#1177dd] text-[#1177dd] text-sm font-semibold py-2.5 rounded-xl hover:bg-[var(--bg)] transition-colors"
+              >
+                メンバー
+              </Link>
+            </div>
           </section>
 
           {/* 募集するカード */}
@@ -177,6 +193,24 @@ export default function TopPage() {
                 <p className="font-semibold text-[var(--ink)]">くわしく募集</p>
                 <p className="text-sm text-[var(--ink-sub)] mt-0.5">コメントや連絡先まで入力する・3ステップ</p>
               </Link>
+
+              <div className="border-t border-[var(--line)] pt-3 space-y-2">
+                <p className="text-[11px] font-bold text-[var(--ink-mute)]">登録チーム向け</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/posts/new/helper"
+                    className="text-center border border-[var(--clay)] text-[var(--clay)] text-sm font-bold py-2.5 rounded-xl"
+                  >
+                    助っ人を募集
+                  </Link>
+                  <Link
+                    href="/posts/new/member"
+                    className="text-center border border-[#1177dd] text-[#1177dd] text-sm font-bold py-2.5 rounded-xl"
+                  >
+                    メンバーを募集
+                  </Link>
+                </div>
+              </div>
             </div>
           </section>
         </div>
