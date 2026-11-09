@@ -50,7 +50,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
     if (!showDecided) query = query.neq('status', '決定済み')
 
     const { data, error } = await query
-    if (!error && data) setPosts(data as MatchPostWithTeam[])
+    if (!error && data) setPosts(data as unknown as MatchPostWithTeam[])
     setLoading(false)
   }, [prefecture, date, field, level, showDecided])
 

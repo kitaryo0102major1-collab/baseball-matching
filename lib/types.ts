@@ -39,14 +39,17 @@ export interface MatchPost {
   start_time: string | null
   end_time: string | null
   description: string | null
-  contact_email: string | null
-  contact_phone: string | null
-  contact_other: string | null
   sns_x: string | null
   sns_instagram: string | null
   team_id: string | null
   created_by: string | null
   created_at: string
+}
+
+export interface PostContacts {
+  contact_email: string | null
+  contact_phone: string | null
+  contact_other: string | null
 }
 
 export interface PostTeamBadge {

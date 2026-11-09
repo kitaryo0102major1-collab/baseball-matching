@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import type { MatchPost } from '@/lib/types'
+import type { MatchPost, PostContacts } from '@/lib/types'
 import ContactSheet from './ContactSheet'
 
 interface Props {
   post: MatchPost
+  contacts: PostContacts | null
 }
 
-export default function PostApplyCta({ post }: Props) {
+export default function PostApplyCta({ post, contacts }: Props) {
   const [open, setOpen] = useState(false)
   const label = post.post_type === 'helper' ? '助っ人に応募する' : '体験・入部を申し込む'
 
@@ -26,7 +27,7 @@ export default function PostApplyCta({ post }: Props) {
           連絡先を確認して直接ご連絡ください。下の公開メッセージからも送れます。
         </p>
       </div>
-      <ContactSheet open={open} onClose={() => setOpen(false)} post={post} />
+      <ContactSheet open={open} onClose={() => setOpen(false)} post={post} contacts={contacts} />
     </aside>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { MatchPost, PostType } from '@/lib/types'
+import type { MatchPost, PostContacts, PostType } from '@/lib/types'
 import BottomSheet from './BottomSheet'
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
@@ -15,6 +15,7 @@ interface Props {
   open: boolean
   onClose: () => void
   post: MatchPost
+  contacts: PostContacts | null
 }
 
 interface ContactRowData {
@@ -24,7 +25,7 @@ interface ContactRowData {
   actionLabel: string
 }
 
-export default function ContactSheet({ open, onClose, post }: Props) {
+export default function ContactSheet({ open, onClose, post, contacts }: Props) {
   const [copied, setCopied] = useState(false)
 
   const dateLabel = post.game_date ? formatShortDate(post.game_date) : ''
@@ -51,18 +52,18 @@ export default function ContactSheet({ open, onClose, post }: Props) {
   }
 
   const rows: ContactRowData[] = []
-  if (post.contact_email) {
-    rows.push({ label: 'メール', value: post.contact_email, href: `mailto:${post.contact_email}`, actionLabel: 'メールを開く' })
+  if (contacts?.contact_email) {
+    rows.push({ label: 'メール', value: contacts.contact_email, href: `mailto:${contacts.contact_email}`, actionLabel: 'メールを開く' })
   }
-  if (post.contact_phone) {
-    rows.push({ label: '電話', value: post.contact_phone, href: `tel:${post.contact_phone}`, actionLabel: '発信する' })
+  if (contacts?.contact_phone) {
+    rows.push({ label: '電話', value: contacts.contact_phone, href: `tel:${contacts.contact_phone}`, actionLabel: '発信する' })
   }
-  if (post.contact_other) {
-    const isUrl = /^https?:\/\//.test(post.contact_other)
+  if (contacts?.contact_other) {
+    const isUrl = /^https?:\/\//.test(contacts.contact_other)
     rows.push({
       label: 'その他',
-      value: post.contact_other,
-      href: isUrl ? post.contact_other : null,
+      value: contacts.contact_other,
+      href: isUrl ? contacts.contact_other : null,
       actionLabel: '開く',
     })
   }

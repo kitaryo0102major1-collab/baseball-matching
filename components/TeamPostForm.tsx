@@ -12,6 +12,7 @@ import {
   type MatchPost,
   type MatchPostInsert,
   type Position,
+  type PostContacts,
   type Team,
 } from '@/lib/types'
 import PostCreatedScreen from './PostCreatedScreen'
@@ -62,10 +63,11 @@ interface Props {
   defaultTeamId?: string
   userId?: string
   initialPost?: MatchPost
+  initialContacts?: PostContacts | null
   source?: SourcePost | null
 }
 
-export default function TeamPostForm({ postType, teams, defaultTeamId, userId, initialPost, source }: Props) {
+export default function TeamPostForm({ postType, teams, defaultTeamId, userId, initialPost, initialContacts, source }: Props) {
   const router = useRouter()
   const isEdit = !!initialPost
   const isHelper = postType === 'helper'
@@ -94,9 +96,9 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
   const [activityNote, setActivityNote] = useState(initialPost?.activity_note ?? teamActivity(initialTeam))
   const [trialOk, setTrialOk] = useState<boolean | null>(initialPost?.trial_ok ?? null)
   const [description, setDescription] = useState(initialPost?.description ?? '')
-  const [contactEmail, setContactEmail] = useState(initialPost?.contact_email ?? initialTeam?.contact_email ?? '')
-  const [contactPhone, setContactPhone] = useState(initialPost?.contact_phone ?? initialTeam?.contact_phone ?? '')
-  const [contactOther, setContactOther] = useState(initialPost?.contact_other ?? initialTeam?.contact_other ?? '')
+  const [contactEmail, setContactEmail] = useState(initialContacts?.contact_email ?? initialTeam?.contact_email ?? '')
+  const [contactPhone, setContactPhone] = useState(initialContacts?.contact_phone ?? initialTeam?.contact_phone ?? '')
+  const [contactOther, setContactOther] = useState(initialContacts?.contact_other ?? initialTeam?.contact_other ?? '')
 
   const [errors, setErrors] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)

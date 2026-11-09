@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import { todayJST } from '@/lib/dates'
+import { POST_COLUMNS, getPostContacts } from '@/lib/postQueries'
 import { memberVisibility, postListPath } from '@/lib/postRules'
 import { pageMetadata, truncateText } from '@/lib/seo'
 import { getPostPermissions } from '@/lib/postPermissions'
@@ -41,7 +43,7 @@ function formatTime(t: string | null) {
 }
 
 const getPost = cache(async (id: string) => {
-  const { data } = await supabase.from('match_posts').select('*').eq('id', id).maybeSingle()
+  const { data } = await supabase.from('match_posts').select(POST_COLUMNS).eq('id', id).maybeSingle()
   return data as MatchPost | null
 })
 
@@ -140,6 +142,7 @@ export default async function PostDetailPage({ params }: Props) {
   const memberUnlisted = isMember && !memberClosed && visibility === 'unlisted'
   const canApply = post.post_type !== 'match' && post.status === '募集中' && !isPastDate && !memberUnlisted
   const showChat = !memberClosed && !memberUnlisted
+  const contacts = post.post_type === 'match' || canApply ? await getPostContacts(await createClient(), post.id) : null
 
   const placeLine = [post.prefecture, post.area_detail].filter(Boolean).join(' ')
 
@@ -284,8 +287,8 @@ export default async function PostDetailPage({ params }: Props) {
 
         {/* 連絡先（モバイルのみ） */}
         <div className="lg:hidden">
-          {post.post_type === 'match' && <DetailContactCta post={post} />}
-          {canApply && <PostApplyCta post={post} />}
+          {post.post_type === 'match' && <DetailContactCta contacts={contacts} />}
+          {canApply && <PostApplyCta post={post} contacts={contacts} />}
         </div>
 
         {/* チャット */}
@@ -294,8 +297,8 @@ export default async function PostDetailPage({ params }: Props) {
 
       {/* 連絡先（PC サイドバー） */}
       <div className="hidden lg:block">
-        {post.post_type === 'match' && <DetailContactCta post={post} />}
-        {canApply && <PostApplyCta post={post} />}
+        {post.post_type === 'match' && <DetailContactCta contacts={contacts} />}
+        {canApply && <PostApplyCta post={post} contacts={contacts} />}
       </div>
     </div>
   )

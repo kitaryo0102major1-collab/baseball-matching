@@ -1,14 +1,14 @@
-import type { MatchPost } from '@/lib/types'
+import type { PostContacts } from '@/lib/types'
 
 interface Props {
-  post: MatchPost
+  contacts: PostContacts | null
 }
 
-export default function DetailContactCta({ post }: Props) {
-  const hasContact =
-    post.contact_email || post.contact_phone || post.contact_other
+export default function DetailContactCta({ contacts }: Props) {
+  if (!contacts) return null
 
-  if (!hasContact) return null
+  const { contact_email, contact_phone, contact_other } = contacts
+  if (!contact_email && !contact_phone && !contact_other) return null
 
   return (
     <aside className="mt-8 lg:mt-0 lg:sticky lg:top-20">
@@ -19,27 +19,27 @@ export default function DetailContactCta({ post }: Props) {
         </div>
 
         <div className="px-5 py-4 space-y-3">
-          {post.contact_email && (
+          {contact_email && (
             <ContactItem
               icon="✉️"
               label="メール"
-              href={`mailto:${post.contact_email}`}
-              text={post.contact_email}
+              href={`mailto:${contact_email}`}
+              text={contact_email}
             />
           )}
-          {post.contact_phone && (
+          {contact_phone && (
             <ContactItem
               icon="📞"
               label="電話"
-              href={`tel:${post.contact_phone}`}
-              text={post.contact_phone}
+              href={`tel:${contact_phone}`}
+              text={contact_phone}
             />
           )}
-          {post.contact_other && (
+          {contact_other && (
             <ContactItem
               icon="💬"
               label="その他"
-              text={post.contact_other}
+              text={contact_other}
             />
           )}
         </div>

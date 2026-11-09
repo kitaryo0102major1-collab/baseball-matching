@@ -97,7 +97,7 @@ export default function TopPage() {
         .order('created_at', { ascending: false })
         .limit(2)
 
-      if (data) setRecentPosts(data as MatchPostWithTeam[])
+      if (data) setRecentPosts(data as unknown as MatchPostWithTeam[])
     }
 
     loadCounts()

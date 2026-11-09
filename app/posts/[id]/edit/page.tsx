@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import { getPostPermissions } from '@/lib/postPermissions'
+import { POST_COLUMNS, getPostContacts } from '@/lib/postQueries'
 import { memberVisibility } from '@/lib/postRules'
 import { pageMetadata } from '@/lib/seo'
 import type { MatchPost } from '@/lib/types'
@@ -18,7 +20,7 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function EditPostPage({ params }: Props) {
   const { id } = await params
-  const { data, error } = await supabase.from('match_posts').select('*').eq('id', id).single()
+  const { data, error } = await supabase.from('match_posts').select(POST_COLUMNS).eq('id', id).single()
 
   if (error || !data) notFound()
 
@@ -26,9 +28,11 @@ export default async function EditPostPage({ params }: Props) {
   const { canEdit } = await getPostPermissions(post)
   if (!canEdit) redirect(`/posts/${post.id}`)
 
-  if (post.post_type === 'match') return <PostForm mode="edit" initialPost={post} />
+  const contacts = await getPostContacts(await createClient(), post.id)
+
+  if (post.post_type === 'match') return <PostForm mode="edit" initialPost={post} initialContacts={contacts} />
 
   if (post.post_type === 'member' && memberVisibility(post) === 'expired') redirect(`/posts/${post.id}`)
 
-  return <TeamPostForm postType={post.post_type} teams={[]} initialPost={post} />
+  return <TeamPostForm postType={post.post_type} teams={[]} initialPost={post} initialContacts={contacts} />
 }

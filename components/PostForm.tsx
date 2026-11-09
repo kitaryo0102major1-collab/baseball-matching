@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useMyTeams } from '@/lib/useMyTeams'
-import type { FieldStatus, Level, MatchPost, MatchPostInsert, MyTeamForPost } from '@/lib/types'
+import type { FieldStatus, Level, MatchPost, MatchPostInsert, MyTeamForPost, PostContacts } from '@/lib/types'
 import { PREFECTURES, POPULAR_PREFECTURES } from '@/lib/prefectures'
 import BottomSheet from './BottomSheet'
 import PostCreatedScreen from './PostCreatedScreen'
@@ -58,10 +58,13 @@ function chipClass(active: boolean) {
 interface Props {
   mode: 'create' | 'edit'
   initialPost?: MatchPost
+  initialContacts?: PostContacts | null
 }
 
-export default function PostForm({ mode, initialPost }: Props) {
+export default function PostForm({ mode, initialPost, initialContacts }: Props) {
   const router = useRouter()
+  // 掲載が終わったゲスト募集は、既存の連絡先を読めない
+  const contactsHidden = mode === 'edit' && !initialContacts
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(null)
@@ -78,9 +81,9 @@ export default function PostForm({ mode, initialPost }: Props) {
   const [endTime, setEndTime] = useState(initialPost?.end_time?.slice(0, 5) ?? '')
   const [level, setLevel] = useState<Level | ''>(initialPost?.level ?? '')
   const [description, setDescription] = useState(initialPost?.description ?? '')
-  const [contactEmail, setContactEmail] = useState(initialPost?.contact_email ?? '')
-  const [contactPhone, setContactPhone] = useState(initialPost?.contact_phone ?? '')
-  const [contactOther, setContactOther] = useState(initialPost?.contact_other ?? '')
+  const [contactEmail, setContactEmail] = useState(initialContacts?.contact_email ?? '')
+  const [contactPhone, setContactPhone] = useState(initialContacts?.contact_phone ?? '')
+  const [contactOther, setContactOther] = useState(initialContacts?.contact_other ?? '')
   const [snsX, setSnsX] = useState(initialPost?.sns_x ?? '')
   const [snsInstagram, setSnsInstagram] = useState(initialPost?.sns_instagram ?? '')
 
@@ -136,7 +139,7 @@ export default function PostForm({ mode, initialPost }: Props) {
 
   function validateStep3() {
     const e: Record<string, string> = {}
-    if (!contactEmail.trim() && !contactPhone.trim() && !contactOther.trim()) {
+    if (!contactsHidden && !contactEmail.trim() && !contactPhone.trim() && !contactOther.trim()) {
       e.contact = '連絡先を1つ以上入力してください'
     }
     return e
@@ -175,6 +178,9 @@ export default function PostForm({ mode, initialPost }: Props) {
     setSubmitting(true)
     setErrors({})
 
+    // undefined の項目は送信されないので、連絡先が見えないときの空欄は既存の値を消さない
+    const blankContact = contactsHidden ? undefined : null
+
     const payload: MatchPostInsert = {
       title: title.trim(),
       prefecture,
@@ -186,9 +192,9 @@ export default function PostForm({ mode, initialPost }: Props) {
       end_time: endTime || null,
       level: level as Level,
       description: description.trim() || null,
-      contact_email: contactEmail.trim() || null,
-      contact_phone: contactPhone.trim() || null,
-      contact_other: contactOther.trim() || null,
+      contact_email: contactEmail.trim() || blankContact,
+      contact_phone: contactPhone.trim() || blankContact,
+      contact_other: contactOther.trim() || blankContact,
       sns_x: snsX.trim() || null,
       sns_instagram: snsInstagram.trim() || null,
     }
@@ -435,7 +441,14 @@ export default function PostForm({ mode, initialPost }: Props) {
           {step === 3 && (
             <>
               <div>
-                <FormLabel required>連絡先（1つ以上）</FormLabel>
+                {contactsHidden ? (
+                  <>
+                    <FormLabel>連絡先</FormLabel>
+                    <p className="text-xs text-[var(--ink-mute)] mb-2">空欄のままなら連絡先は変更されません</p>
+                  </>
+                ) : (
+                  <FormLabel required>連絡先（1つ以上）</FormLabel>
+                )}
                 {teamId && (
                   <p className="text-xs text-[var(--ink-mute)] mb-2">
                     チームの連絡先を入力しました。チームページで非公開にしている連絡先も、この募集には表示されます。

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireMyTeams } from '@/lib/myTeam'
 import { todayJST } from '@/lib/dates'
+import { POST_COLUMNS } from '@/lib/postQueries'
 import { memberVisibility } from '@/lib/postRules'
 import type { MatchPost, TeamMember } from '@/lib/types'
 import MyTeamPosts, { type MyTeamPost } from '@/components/MyTeamPosts'
@@ -24,7 +25,7 @@ export default async function MyPage() {
     supabase.from('team_members').select('user_id, display_name').eq('team_id', team.id),
     supabase
       .from('match_posts')
-      .select('*, chats(created_at, team_id)')
+      .select(`${POST_COLUMNS}, chats(created_at, team_id)`)
       .eq('team_id', team.id)
       .order('game_date', { ascending: true, nullsFirst: false }),
   ])

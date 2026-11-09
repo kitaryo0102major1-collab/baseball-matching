@@ -5,6 +5,7 @@ import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
 import { openPostsOrFilter } from '@/lib/postRules'
 import { pageMetadata, truncateText } from '@/lib/seo'
+import { POST_COLUMNS } from '@/lib/postQueries'
 import type { MatchPost, TeamProfile } from '@/lib/types'
 import PostCard from '@/components/PostCard'
 import TeamAvatar from '@/components/TeamAvatar'
@@ -51,7 +52,7 @@ export default async function TeamPage({ params }: Props) {
 
   const { data: postsData } = await supabase
     .from('match_posts')
-    .select('*')
+    .select(POST_COLUMNS)
     .eq('team_id', team.id)
     .eq('status', '募集中')
     .or(openPostsOrFilter())

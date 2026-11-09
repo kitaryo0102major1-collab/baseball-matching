@@ -33,7 +33,10 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
   - `memberListingCutoff()`、`openPostsOrFilter()`、`postListPath()`
   - `syncListUrl()`: 一覧の絞り込みを URL に反映する。`router.replace` を使うと `/posts` が無限ループするので必ずこれを使う
 - `postPermissions.ts`: `getPostPermissions()`、`isTeamManager()`（サーバー専用）
-- `postQueries.ts`: `POST_WITH_TEAM_SELECT`（募集＋チーム公開情報の select）
+- `postQueries.ts`: 募集の取得
+  - `POST_COLUMNS`: 連絡先を除いた列リスト。`match_posts` を読むときは必ずこれを使う（`select('*')` は権限エラーになる）
+  - `POST_WITH_TEAM_SELECT`: `POST_COLUMNS` ＋チーム公開情報
+  - `getPostContacts()`: RPC `get_post_contacts` で連絡先を取得する。ログイン状態を持つクライアントを渡す
 - `myTeam.ts`: `getMyTeams()`、`requireMyTeams()`（サーバー専用。未ログインは `/login` へ）
 - `useMyTeams.ts`: 自チーム取得の Client 用フック
 - `selectedTeam.ts`: 選択中チームとログイン後の戻り先の Cookie、`isSafeNextPath()`
@@ -62,7 +65,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 
 | テーブル | 内容 | 読み取り | 書き込み |
 |---|---|---|---|
-| `match_posts` | 全種類の募集（`post_type`: `match`、`helper`、`member`） | 誰でも | 下記 |
+| `match_posts` | 全種類の募集（`post_type`: `match`、`helper`、`member`） | 誰でも（連絡先3列を除く） | 下記 |
 | `chats` | 募集の公開チャット | 誰でも | ゲスト可。`team_id` 付きはそのチームの管理者のみ |
 | `teams` | チーム本体（非公開の連絡先を含む） | 管理者のみ | 作成はログインユーザー、更新・削除は管理者 |
 | `team_profiles`（ビュー） | チームの公開情報。連絡先は `contact_public` のときだけ返す | 誰でも | 不可 |
@@ -75,7 +78,15 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - チームの対戦相手募集: そのチームの管理者のみ
 - 助っ人・メンバー募集: `team_id` 必須で、そのチームの管理者のみ
 
-他チームの情報を読むときは `teams` ではなく `team_profiles` を使う。`match_posts` の連絡先は DB 上は誰でも読めるため、公開したくない情報を入れない。
+他チームの情報を読むときは `teams` ではなく `team_profiles` を使う。
+
+`match_posts` の連絡先（`contact_email`、`contact_phone`、`contact_other`）:
+
+- `select` は列単位の権限で、anon / authenticated は連絡先3列を読めない。`select('*')`、連絡先列の指定、連絡先列での絞り込みはいずれも権限エラーになる
+- 列を追加したら、公開する列を `grant select (列名)` し、`POST_COLUMNS` にも足す
+- 読むときは `get_post_contacts(post_id)` を使う。返すのは掲載中の募集（`status = '募集中'` で、対戦相手・助っ人は試合日が今日（日本時間）以降、メンバーは `renewed_at` が60日以内）か、呼び出した人がそのチームの管理者のときだけ。それ以外は null
+- 書き込みは今までどおり `insert` / `update` でできる
+- 掲載が終わったゲスト募集の編集画面では連絡先を読めないので、空欄の項目は送信せず既存の値を残す（`PostForm` の `contactsHidden`）
 
 トリガーと定期処理:
 

@@ -67,7 +67,7 @@ export default function TeamTypePosts({ type }: Props) {
 
       const { data, error } = await query
       if (cancelled) return
-      if (!error && data) setPosts(data as MatchPostWithTeam[])
+      if (!error && data) setPosts(data as unknown as MatchPostWithTeam[])
       setLoading(false)
     }
 
