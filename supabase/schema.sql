@@ -1,3 +1,4 @@
+-- この内容は古いので、現在の定義は supabase/migrations を参照
 -- MatchPost テーブル
 create table if not exists match_posts (
   id            uuid primary key default gen_random_uuid(),
