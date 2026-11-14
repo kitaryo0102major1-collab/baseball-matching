@@ -6,7 +6,7 @@ import { readSelectedTeamCookie } from '@/lib/selectedTeam'
 import type { MyTeamForPost } from '@/lib/types'
 
 const TEAM_FIELDS =
-  'id, name, logo_url, prefecture, area_detail, level, contact_email, contact_phone, contact_other, sns_x, sns_instagram'
+  'id, name, logo_url, prefecture, area_detail, level, contact_email, contact_phone, contact_other, sns_x, sns_instagram, city, travel_range'
 
 export type MyTeamsState =
   | { status: 'loading' }

@@ -4,9 +4,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useMyTeams } from '@/lib/useMyTeams'
-import type { FieldStatus, Level, MatchPost, MatchPostInsert, MyTeamForPost, PostContacts } from '@/lib/types'
+import {
+  TRAVEL_RANGES,
+  type FieldStatus,
+  type Level,
+  type MatchPost,
+  type MatchPostInsert,
+  type MyTeamForPost,
+  type PostContacts,
+  type TravelRange,
+} from '@/lib/types'
 import { PREFECTURES, POPULAR_PREFECTURES } from '@/lib/prefectures'
 import BottomSheet from './BottomSheet'
+import CitySelect from './CitySelect'
 import PostCreatedScreen from './PostCreatedScreen'
 import TeamChoice from './TeamChoice'
 
@@ -73,6 +83,10 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
 
   const [title, setTitle] = useState(initialPost?.title ?? '')
   const [prefecture, setPrefecture] = useState(initialPost?.prefecture ?? '')
+  const [city, setCity] = useState(initialPost?.city ?? '')
+  const [travelRange, setTravelRange] = useState<TravelRange | ''>(initialPost?.travel_range ?? '')
+  // 市区町村がまだない既存の募集は、未選択のまま保存できる
+  const cityRequired = mode === 'create' || !!initialPost?.city
   const [areaDetail, setAreaDetail] = useState(initialPost?.area_detail ?? '')
   const [fieldStatus, setFieldStatus] = useState<FieldStatus | ''>(initialPost?.field_status ?? '')
   const [venueName, setVenueName] = useState(initialPost?.venue_name ?? '')
@@ -92,8 +106,15 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
   const [teamId, setTeamId] = useState('')
   const defaultApplied = useRef(false)
 
+  function changePrefecture(value: string) {
+    if (value !== prefecture) setCity('')
+    setPrefecture(value)
+  }
+
   function applyTeam(team: MyTeamForPost) {
     setPrefecture(team.prefecture)
+    setCity(team.city ?? '')
+    setTravelRange(team.travel_range ?? '')
     setAreaDetail(team.area_detail ?? '')
     setLevel(team.level)
     setContactEmail(team.contact_email ?? '')
@@ -125,6 +146,7 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
     const e: Record<string, string> = {}
     if (!title.trim()) e.title = 'タイトルは必須です'
     if (!prefecture) e.prefecture = '都道府県を選択してください'
+    else if (cityRequired && !city) e.city = '市区町村を選択してください'
     return e
   }
 
@@ -184,6 +206,8 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
     const payload: MatchPostInsert = {
       title: title.trim(),
       prefecture,
+      city: city || null,
+      travel_range: travelRange || null,
       area_detail: areaDetail.trim() || null,
       field_status: fieldStatus as FieldStatus,
       venue_name: fieldStatus === 'ok' ? venueName.trim() : null,
@@ -265,7 +289,7 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
                   value={teamId}
                   onChange={chooseTeam}
                   guestLabel="チームとしてではなく募集する"
-                  hint={teamId ? 'チームの都道府県・レベル・連絡先・SNSを入力しました。あとから変更できます。' : undefined}
+                  hint={teamId ? 'チームの都道府県・市区町村・移動できる範囲・レベル・連絡先・SNSを入力しました（未登録の項目は空欄）。あとから変更できます。' : undefined}
                 />
               )}
               <div>
@@ -286,14 +310,14 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
                 <FormLabel required>都道府県</FormLabel>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {POPULAR_PREFECTURES.map((p) => (
-                    <button key={p} type="button" onClick={() => setPrefecture(p)} className={chipClass(prefecture === p)}>
+                    <button key={p} type="button" onClick={() => changePrefecture(p)} className={chipClass(prefecture === p)}>
                       {p}
                     </button>
                   ))}
                 </div>
                 <select
                   value={prefecture}
-                  onChange={(e) => setPrefecture(e.target.value)}
+                  onChange={(e) => changePrefecture(e.target.value)}
                   className={inputClass(!!errors.prefecture)}
                 >
                   <option value="">都道府県を選択</option>
@@ -303,6 +327,35 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {prefecture && (
+                <div>
+                  <FormLabel required={cityRequired}>市区町村</FormLabel>
+                  <CitySelect
+                    prefecture={prefecture}
+                    value={city}
+                    onChange={setCity}
+                    className={inputClass(!!errors.city)}
+                  />
+                </div>
+              )}
+
+              <div>
+                <FormLabel>移動できる範囲（任意）</FormLabel>
+                <div className="flex flex-wrap gap-2">
+                  {TRAVEL_RANGES.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      aria-pressed={travelRange === r}
+                      onClick={() => setTravelRange(travelRange === r ? '' : r)}
+                      className={chipClass(travelRange === r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
               </div>
 
             </>
@@ -527,7 +580,7 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
 
               <div className="bg-[#F1EEE4] rounded-xl p-4 text-sm space-y-1">
                 <p className="font-bold text-[var(--ink)]">{title || '（タイトル未入力）'}</p>
-                <p className="text-[var(--ink-sub)]">{[prefecture, areaDetail].filter(Boolean).join(' ')}</p>
+                <p className="text-[var(--ink-sub)]">{[prefecture, city, areaDetail].filter(Boolean).join(' ')}</p>
                 <p className="text-[var(--ink-sub)]">{gameDate}</p>
                 {level && <p className="text-[var(--ink-sub)]">Lv.{level}</p>}
               </div>

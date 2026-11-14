@@ -156,6 +156,8 @@ export type MyTeamForPost = Pick<
   | 'contact_other'
   | 'sns_x'
   | 'sns_instagram'
+  | 'city'
+  | 'travel_range'
 >
 
 export interface MatchPostInsert {

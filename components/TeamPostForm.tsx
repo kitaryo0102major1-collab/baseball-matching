@@ -8,13 +8,16 @@ import { PREFECTURES, POPULAR_PREFECTURES } from '@/lib/prefectures'
 import {
   EXPERIENCES,
   POSITIONS,
+  TRAVEL_RANGES,
   type Experience,
   type MatchPost,
   type MatchPostInsert,
   type Position,
   type PostContacts,
   type Team,
+  type TravelRange,
 } from '@/lib/types'
+import CitySelect from './CitySelect'
 import PostCreatedScreen from './PostCreatedScreen'
 import TeamChoice from './TeamChoice'
 
@@ -54,7 +57,7 @@ function teamActivity(team: Team | undefined) {
 
 export type SourcePost = Pick<
   MatchPost,
-  'id' | 'title' | 'team_id' | 'game_date' | 'start_time' | 'end_time' | 'prefecture' | 'area_detail' | 'venue_name'
+  'id' | 'title' | 'team_id' | 'game_date' | 'start_time' | 'end_time' | 'prefecture' | 'city' | 'area_detail' | 'venue_name'
 >
 
 interface Props {
@@ -83,6 +86,15 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
   const [prefecture, setPrefecture] = useState(
     initialPost?.prefecture ?? source?.prefecture ?? initialTeam?.prefecture ?? ''
   )
+  // 市区町村は都道府県と同じ出どころ（編集中の募集 → 引き継ぐ試合 → チーム）から入れる
+  const [city, setCity] = useState(
+    (initialPost ? initialPost.city : source ? source.city : initialTeam?.city) ?? ''
+  )
+  const [travelRange, setTravelRange] = useState<TravelRange | ''>(
+    (initialPost ? initialPost.travel_range : initialTeam?.travel_range) ?? ''
+  )
+  // 市区町村がまだない既存の募集は、未選択のまま保存できる
+  const cityRequired = !isEdit || !!initialPost.city
   const [areaDetail, setAreaDetail] = useState(
     initialPost?.area_detail ?? source?.area_detail ?? initialTeam?.area_detail ?? ''
   )
@@ -114,11 +126,18 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
     const team = teams.find((t) => t.id === id)
     if (!team) return
     setPrefecture(team.prefecture)
+    setCity(team.city ?? '')
+    setTravelRange(team.travel_range ?? '')
     setAreaDetail(team.area_detail ?? '')
     setActivityNote(teamActivity(team))
     setContactEmail(team.contact_email ?? '')
     setContactPhone(team.contact_phone ?? '')
     setContactOther(team.contact_other ?? '')
+  }
+
+  function changePrefecture(value: string) {
+    if (value !== prefecture) setCity('')
+    setPrefecture(value)
   }
 
   function togglePosition(position: Position) {
@@ -134,6 +153,7 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
     if (isHelper && !gameDate) e.push('試合日は必須です')
     if (isHelper && !isEdit && gameDate && gameDate < todayJST()) e.push('試合日は今日以降を選んでください')
     if (!prefecture) e.push('都道府県を選択してください')
+    else if (cityRequired && !city) e.push('市区町村を選択してください')
     if (positions.length === 0) e.push('ポジションを1つ以上選んでください')
     if (isHelper && !headcount) e.push('人数を選んでください')
     if (!experience) e.push('経験を選んでください')
@@ -157,6 +177,8 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
     const common = {
       title: title.trim(),
       prefecture,
+      city: city || null,
+      travel_range: travelRange || null,
       area_detail: areaDetail.trim() || null,
       positions,
       headcount: headcount.trim() || null,
@@ -237,7 +259,7 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
             <TeamChoice label="どのチームとして募集しますか？" teams={teams} value={teamId} onChange={chooseTeam} />
             {selectedTeamLevel && (
               <p className="text-xs text-[var(--ink-mute)]">
-                チームの都道府県・エリア・連絡先{isHelper ? '' : '・活動'}を入力しました（変更できます）。レベルはチームの Lv.{selectedTeamLevel} を使います。チームページで非公開にしている連絡先も、この募集には表示されます。
+                チームの都道府県・市区町村・移動できる範囲・エリア・連絡先{isHelper ? '' : '・活動'}を入力しました（未登録の項目は空欄。変更できます）。レベルはチームの Lv.{selectedTeamLevel} を使います。チームページで非公開にしている連絡先も、この募集には表示されます。
               </p>
             )}
             {activeSource && (
@@ -283,12 +305,12 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
             <FormLabel required>都道府県</FormLabel>
             <div className="flex flex-wrap gap-2 mb-2">
               {POPULAR_PREFECTURES.map((p) => (
-                <button key={p} type="button" onClick={() => setPrefecture(p)} className={chipClass(prefecture === p)}>
+                <button key={p} type="button" onClick={() => changePrefecture(p)} className={chipClass(prefecture === p)}>
                   {p}
                 </button>
               ))}
             </div>
-            <select value={prefecture} onChange={(e) => setPrefecture(e.target.value)} className={INPUT_CLASS}>
+            <select value={prefecture} onChange={(e) => changePrefecture(e.target.value)} className={INPUT_CLASS}>
               <option value="">都道府県を選択</option>
               {PREFECTURES.map((p) => (
                 <option key={p} value={p}>
@@ -296,6 +318,30 @@ export default function TeamPostForm({ postType, teams, defaultTeamId, userId, i
                 </option>
               ))}
             </select>
+          </div>
+
+          {prefecture && (
+            <div>
+              <FormLabel required={cityRequired}>市区町村</FormLabel>
+              <CitySelect prefecture={prefecture} value={city} onChange={setCity} className={INPUT_CLASS} />
+            </div>
+          )}
+
+          <div>
+            <FormLabel>移動できる範囲</FormLabel>
+            <div className="flex flex-wrap gap-2">
+              {TRAVEL_RANGES.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={travelRange === r}
+                  onClick={() => setTravelRange(travelRange === r ? '' : r)}
+                  className={chipClass(travelRange === r)}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>

@@ -25,7 +25,7 @@ export default async function NewHelperPostPage({ searchParams }: Props) {
   if (typeof from === 'string') {
     const { data } = await supabase
       .from('match_posts')
-      .select('id, title, team_id, game_date, start_time, end_time, prefecture, area_detail, venue_name')
+      .select('id, title, team_id, game_date, start_time, end_time, prefecture, city, area_detail, venue_name')
       .eq('id', from)
       .eq('post_type', 'match')
       .in(
