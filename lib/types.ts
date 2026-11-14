@@ -11,9 +11,11 @@ export const POST_TYPE_LABELS: Record<PostType, string> = {
 
 export const POSITIONS = ['投手', '捕手', '内野手', '外野手', 'どこでも'] as const
 export const EXPERIENCES = ['経験者のみ', '未経験OK', '問わない'] as const
+export const TRAVEL_RANGES = ['市内のみ', '30分圏内', '1時間圏内', '県内どこでも'] as const
 
 export type Position = (typeof POSITIONS)[number]
 export type Experience = (typeof EXPERIENCES)[number]
+export type TravelRange = (typeof TRAVEL_RANGES)[number]
 
 export interface MatchPost {
   id: string
@@ -44,6 +46,8 @@ export interface MatchPost {
   team_id: string | null
   created_by: string | null
   created_at: string
+  city: string | null
+  travel_range: TravelRange | null
 }
 
 export interface PostContacts {
@@ -90,6 +94,8 @@ export interface TeamProfile {
   contact_other: string | null
   created_at: string
   updated_at: string
+  city: string | null
+  travel_range: TravelRange | null
 }
 
 export interface Team extends TeamProfile {
@@ -97,7 +103,8 @@ export interface Team extends TeamProfile {
   contact_public: boolean
 }
 
-export type TeamInput = Omit<Team, 'id' | 'created_by' | 'created_at' | 'updated_at'>
+// city / travel_range はまだフォームで扱わないので、保存時に送らない（既存の値を消さない）
+export type TeamInput = Omit<Team, 'id' | 'created_by' | 'created_at' | 'updated_at' | 'city' | 'travel_range'>
 
 export type TeamSummary = Pick<Team, 'id' | 'name' | 'logo_url'>
 
@@ -180,4 +187,6 @@ export interface MatchPostInsert {
   sns_instagram?: string | null
   team_id?: string | null
   created_by?: string | null
+  city?: string | null
+  travel_range?: TravelRange | null
 }

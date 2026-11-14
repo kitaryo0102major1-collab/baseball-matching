@@ -41,7 +41,10 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - `useMyTeams.ts`: 自チーム取得の Client 用フック
 - `selectedTeam.ts`: 選択中チームとログイン後の戻り先の Cookie、`isSafeNextPath()`
 - `seo.ts`: `pageMetadata()`。canonical と OG を毎回まとめて指定する（子の `openGraph` は親を丸ごと置き換えるため）
-- `types.ts`、`prefectures.ts`: 型と定数
+- `types.ts`、`prefectures.ts`: 型と定数（移動できる範囲の選択肢は `TRAVEL_RANGES`）
+- `municipalities.ts`: 全国の市区町村一覧 `MUNICIPALITIES`（都道府県ごと、`{ code, name }`）
+  - 総務省「全国地方公共団体コード」（令和6年1月1日更新）から生成した静的データ。政令指定都市は市単位、東京23区は区ごと
+  - 同じ都道府県内に同名の団体がある（北海道の「泊村」）ので、区別が必要なときは `code` を使う
 
 ## 日付
 
@@ -78,7 +81,9 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - チームの対戦相手募集: そのチームの管理者のみ
 - 助っ人・メンバー募集: `team_id` 必須で、そのチームの管理者のみ
 
-他チームの情報を読むときは `teams` ではなく `team_profiles` を使う。
+他チームの情報を読むときは `teams` ではなく `team_profiles` を使う。`teams` に公開する列を足したら、`team_profiles` にも末尾に足す（`create or replace view` は列を末尾にしか追加できない）。
+
+`match_posts` と `teams` の `city`（市区町村名）と `travel_range`（`市内のみ`、`30分圏内`、`1時間圏内`、`県内どこでも`）は任意項目で、既存データは null。`travel_range` は check 制約で値を制限している。`TeamInput` からは外してあるので、チームの保存では送られない。
 
 `match_posts` の連絡先（`contact_email`、`contact_phone`、`contact_other`）:
 
