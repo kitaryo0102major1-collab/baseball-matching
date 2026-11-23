@@ -123,4 +123,59 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 
 ロゴは Storage の `team-logos`（`{team_id}/logo`）で、書き込みは管理者のみ。
 
+## スコア機能のテーブル
+
+仕様は `docs/score-spec.md`。マイグレーションは `20261127000000_score_tables.sql`（段階①のデータのみ。画面はまだない）。
+
+| テーブル | 内容 | 読み取り | 書き込み |
+|---|---|---|---|
+| `teams` の追加列 | `stats_public`（初期 false）、`innings_per_game`（7）、`qualify_pa_rate`（2.0）、`qualify_ip_rate`（1.0）、`season_start_month`（1）。`team_profiles` にも末尾に追加済み | | |
+| `players` | 選手名簿（本名 `real_name` を含む） | 管理者のみ | 管理者 |
+| `player_profiles`（ビュー） | 選手の公開情報（`real_name` なし）。成績公開チームと自チームの選手だけ返す | 誰でも | 不可 |
+| `games` | 試合。`team_id` が null ならゲストの試合 | チームの試合: 管理者か `stats_public` なら誰でも。ゲストの試合: 直接は読めない | チームの試合: 管理者。ゲストの試合: 関数経由のみ |
+| `game_lineups` | 打順・出場（先発と交代）。チームは `player_id`、ゲストは `guest_name`（と任意の `guest_bats`、`guest_throws`） | 試合と同じ（`can_view_game`） | 試合と同じ（`can_edit_game`） |
+| `plate_appearances` | 打席。攻撃は `batter_lineup_id`、守備は `opponent_batting_slot` ＋ `pitcher_lineup_id` | 同上 | 同上 |
+| `runner_events` | 走者の動き。打席の間の盗塁などは `plate_appearance_id` が null | 同上 | 同上 |
+| `pitching_summaries` | 守備を「投手ごとの合計」で記録する試合の投手成績。`order_no` は登板順 | 同上 | 同上 |
+| `pitching_decisions` | 勝・敗・S・H（W/L/S は1試合1人まで） | 同上 | 同上 |
+| `player_season_imports` | 過去データ（選手ごとの年度合計、`p_` 始まりが投手） | 管理者か `stats_public` なら誰でも | 管理者 |
+| `guest_game_secrets` | ゲストの試合の編集用トークンのハッシュと作った端末 | 不可（関数だけ） | 不可（関数だけ） |
+
+データの決まり:
+
+- 選手は `game_lineups.id` で指す。打席・走者・投手成績・勝敗はすべて `game_lineups` を参照し、同じ試合の行しか指せない（`(id, game_id)` の複合外部キー）。成績を選手ごとに集計するときは `game_lineups.player_id` で束ねる
+- 得点は `runner_events.to_base = 'H'` の行。打者自身の進塁・得点も `from_base = 'B'` の行として記録する（本塁打なら B → H）。`earned`（自責点か）は守備時の得点だけ
+- 投球回はアウト数（`outs`）で保存し、表示で「5 1/3」にする
+- `plate_appearances.runners_before` は塁状況のビット和（1=一塁、2=二塁、4=三塁）。得点圏は `runners_before & 6 <> 0`
+- `plate_appearances.seq` は試合内で一意（`deferrable` なので `seq = seq + 1` のような一括の振り直しはできる）
+- 打席結果・走塁の理由・守備位置などの値は check 制約で限定している。値を増やすときはマイグレーションで制約を作り直す
+- `games.status` は `入力中`／`確定`。成績の集計は確定した試合のみ（DB では強制していない）
+
+権限の判定（security definer）:
+
+- `can_edit_game(game_id)`: チームの試合で、そのチームの管理者か
+- `can_view_game(game_id)`: チームの試合で、管理者か `stats_public` か（ゲストの試合は false）
+- `can_view_team_stats(team_id)`: 管理者か `stats_public` か
+
+トリガー:
+
+- `players_lock_team`: 選手のチームは変えられない
+- `games_lock_team`: 試合の `team_id` は付いたら変えられない（ゲスト→チームの取り込みだけ可）
+- `game_lineups_check_player`: チームの試合は同じチームの名簿の選手が必須、ゲストの試合は `player_id` 不可
+- `games_check_links`: `opponent_team_id`、`source_post_id` はチームの試合だけ
+- 選手は試合に出ていると削除できない（退団は `active = false`）。チーム削除では試合・選手ごと消える
+
+ゲストの試合の関数（すべて security definer。`p_token` は編集用トークンの平文で、DB には SHA-256 のハッシュだけ保存）:
+
+- `create_guest_game(p_visitor_id, p_game jsonb)` → `(game_id, edit_token)`: 作成。トークンを平文で受け取れるのはこの時だけ。同じ端末（`visitor_id`）は1日（日本時間）10試合まで（`guest_game_daily_limit`）
+- `save_guest_game(p_game_id, p_token, p_game, p_lineups, p_plate_appearances, p_runner_events, p_pitching_summaries, p_pitching_decisions, p_expected_updated_at?)` → `(updated_at, conflict)`: 試合を丸ごと保存し、子の行は全部入れ替える。子の行の id はクライアントが決めて送る。`p_expected_updated_at` が今の値と違えば `conflict = true`（保存は後勝ちで行う）。`team_id`、`opponent_team_id`、`source_post_id`、`player_id` は無視する
+- `check_guest_game_token(p_game_id, p_token)`: 編集用リンクのトークンが正しいか
+- `delete_guest_game(p_game_id, p_token)`
+- `get_score_game(p_game_id)` → jsonb（`game`、`lineups`、`plate_appearances`、`runner_events`、`pitching_summaries`、`pitching_decisions`）: `/scores/[id]` 用。ゲストの試合は id を知っていれば誰でも、取り込み済みの試合は `stats_public` か管理者のときだけ。選手名は `lineups[].name`（表示名か guest_name）
+- `list_guest_games(p_game_ids[])`: 端末に保存した試合の一覧（最大50件）。得点も返す。取り込み済みは `imported = true` だけ
+- `import_guest_game(p_game_id, p_token, p_team_id, p_player_map jsonb)`: チームへの取り込み（ログイン必須・管理者のみ）。`p_player_map` は `{ "<game_lineups.id>": "<players.id>" }` で全員分。名簿にない選手は先に `players` に追加しておく。取り込むとトークンは使えなくなる
+- `purge_stale_guest_games()`: pg_cron で毎月3日 03:00（日本時間）に実行。チームに取り込まれず1年更新のないゲストの試合を削除
+
+新しいテーブルは API に自動では公開されないので、マイグレーションで `grant` を明示している（スコアのテーブルを足すときも同じ）。
+
 スキーマ変更は `supabase/migrations/` に追加する。`supabase/schema.sql` にはチーム機能以降が反映されていないので、現在の定義はマイグレーションを見る。
