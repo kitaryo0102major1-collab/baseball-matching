@@ -15,6 +15,13 @@ export function memberVisibility(post: Pick<MatchPost, 'renewed_at'>): MemberVis
   return 'listed'
 }
 
+// 受付中か（募集中で、試合日が今日以降・メンバー募集は60日以内）。気になるを押せるかの判定に使う
+export function isPostOpen(post: Pick<MatchPost, 'status' | 'post_type' | 'game_date' | 'renewed_at'>) {
+  if (post.status !== '募集中') return false
+  if (post.post_type === 'member') return memberVisibility(post) === 'listed'
+  return !!post.game_date && post.game_date >= todayJST()
+}
+
 export function memberListingCutoff() {
   return new Date(Date.now() - MEMBER_LISTED_DAYS * DAY_MS).toISOString()
 }

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase/server'
 import { todayJST } from '@/lib/dates'
 import { POST_COLUMNS, getPostContacts } from '@/lib/postQueries'
-import { memberVisibility, postListPath, postPlaceLabel } from '@/lib/postRules'
+import { isPostOpen, memberVisibility, postListPath, postPlaceLabel } from '@/lib/postRules'
 import { pageMetadata, truncateText } from '@/lib/seo'
 import { getPostPermissions } from '@/lib/postPermissions'
 import type { MatchPost, TeamProfile } from '@/lib/types'
@@ -21,6 +21,7 @@ import MatchStatusSegment from '@/components/MatchStatusSegment'
 import DetailContactCta from '@/components/DetailContactCta'
 import ChatArea from '@/components/ChatArea'
 import RecordPostView from '@/components/RecordPostView'
+import LikeButton from '@/components/LikeButton'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -143,6 +144,9 @@ export default async function PostDetailPage({ params }: Props) {
   const memberUnlisted = isMember && !memberClosed && visibility === 'unlisted'
   const canApply = post.post_type !== 'match' && post.status === '募集中' && !isPastDate && !memberUnlisted
   const showChat = !memberClosed && !memberUnlisted
+  const postOpen = isPostOpen(post)
+  // ゲスト募集は誰でも編集できるので、チームの募集で編集できる＝そのチームの管理者
+  const isOwnTeam = !!post.team_id && permissions.canEdit
   const contacts = post.post_type === 'match' || canApply ? await getPostContacts(await createClient(), post.id) : null
 
   const placeLine = [postPlaceLabel(post), post.area_detail].filter(Boolean).join(' ')
@@ -166,7 +170,16 @@ export default async function PostDetailPage({ params }: Props) {
               {post.field_status && <FieldBadge status={post.field_status} />}
               <LevelBadge level={post.level} />
             </div>
-            <h1 className="text-[22px] font-black leading-relaxed text-[var(--ink)]">{post.title}</h1>
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="text-[22px] font-black leading-relaxed text-[var(--ink)] min-w-0">{post.title}</h1>
+              <div className="shrink-0 -mr-2">
+                <LikeButton
+                  postId={post.id}
+                  disabled={!postOpen || isOwnTeam}
+                  disabledReason={!postOpen ? '受付が終わった募集には付けられません' : '自分のチームの募集には付けられません'}
+                />
+              </div>
+            </div>
             {team && (
               <Link href={`/teams/${team.id}`} className="inline-flex items-center gap-1.5 mt-1 max-w-full">
                 <TeamAvatar name={team.name} logoUrl={team.logo_url} size={22} />

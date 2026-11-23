@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { jstMonthDay } from '@/lib/dates'
-import { postPlaceLabel } from '@/lib/postRules'
+import { isPostOpen, postPlaceLabel } from '@/lib/postRules'
 import type { MatchPost, PostTeamBadge } from '@/lib/types'
 import FieldBadge from './FieldBadge'
 import LevelBadge from './LevelBadge'
+import LikeButton from './LikeButton'
 import MatchStatus from './MatchStatus'
 import PostTypeBadge from './PostTypeBadge'
 import TeamAvatar from './TeamAvatar'
@@ -19,9 +20,11 @@ function formatTime(t: string | null) {
 interface Props {
   post: MatchPost & { team?: PostTeamBadge | null }
   footer?: React.ReactNode
+  // 自分のチームの募集（マイページ）では気になるを押せないようにする
+  ownTeam?: boolean
 }
 
-export default function PostCard({ post, footer }: Props) {
+export default function PostCard({ post, footer, ownTeam = false }: Props) {
   const isClosed = post.status !== '募集中'
   const isMember = post.post_type === 'member'
 
@@ -49,7 +52,11 @@ export default function PostCard({ post, footer }: Props) {
           .filter(Boolean)
           .join(' ／ ')
 
+  const open = isPostOpen(post)
+
   return (
+    // 気になるボタンはリンクの中に入れられない（ボタンの入れ子になる）ので、リンクの外に重ねて置く
+    <div className="relative">
     <Link href={`/posts/${post.id}`} className="block group">
       <div
         className={`grid grid-cols-[56px_1fr] gap-3.5 p-3.5 rounded-2xl border transition-all hover:shadow-md ${
@@ -58,7 +65,7 @@ export default function PostCard({ post, footer }: Props) {
       >
         <DateColumn post={post} isClosed={isClosed} />
 
-        <div className="min-w-0">
+        <div className="min-w-0 pr-8">
           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
             <PostTypeBadge type={post.post_type} size="xs" />
             <MatchStatus status={post.status} size="xs" />
@@ -79,6 +86,14 @@ export default function PostCard({ post, footer }: Props) {
         </div>
       </div>
     </Link>
+    <div className="absolute top-1 right-1">
+      <LikeButton
+        postId={post.id}
+        disabled={!open || ownTeam}
+        disabledReason={!open ? '受付が終わった募集には付けられません' : '自分のチームの募集には付けられません'}
+      />
+    </div>
+    </div>
   )
 }
 

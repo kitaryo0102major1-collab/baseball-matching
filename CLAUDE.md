@@ -42,6 +42,8 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - `myTeam.ts`: `getMyTeams()`、`requireMyTeams()`（サーバー専用。未ログインは `/login` へ）
 - `useMyTeams.ts`: 自チーム取得の Client 用フック
 - `selectedTeam.ts`: 選択中チームとログイン後の戻り先の Cookie、`isSafeNextPath()`
+- `likes.ts`: 「気になる」の数と押した状態のクライアント側ストア。`LikeButton` が使い、同じタイミングで表示されたボタンの分を `get_post_like_counts` 1回（200件ごと）でまとめて取得する。押したときは見た目をすぐ変え、失敗したら戻す
+- `postRules.ts` の `isPostOpen()`: 受付中か（気になるを押せるか）の判定
 - `visitor.ts`: 端末ごとのランダムID（localStorage の `visitor_id`）。`getVisitorId()` は読むだけ、`getOrCreateVisitorId()` はなければ作って保存する。localStorage が使えないときはどちらも null を返すので、呼び出し側は記録を省く
 - `seo.ts`: `pageMetadata()`。canonical と OG を毎回まとめて指定する（子の `openGraph` は親を丸ごと置き換えるため）
 - `types.ts`、`prefectures.ts`: 型と定数（移動できる範囲の選択肢は `TRAVEL_RANGES`）

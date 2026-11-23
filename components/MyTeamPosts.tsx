@@ -84,7 +84,7 @@ export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, de
               <div className="space-y-3">
                 {posts.map((post) => (
                   <div key={post.id}>
-                    <PostCard post={post} footer={<PostMeta post={post} lastSeen={lastSeen} />} />
+                    <PostCard post={post} footer={<PostMeta post={post} lastSeen={lastSeen} />} ownTeam />
                     {title === '決定済み' && post.post_type === 'match' && (
                       <Link
                         href={`/posts/new/helper?from=${post.id}`}
