@@ -20,6 +20,7 @@ import MatchStatus from '@/components/MatchStatus'
 import MatchStatusSegment from '@/components/MatchStatusSegment'
 import DetailContactCta from '@/components/DetailContactCta'
 import ChatArea from '@/components/ChatArea'
+import RecordPostView from '@/components/RecordPostView'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -293,6 +294,9 @@ export default async function PostDetailPage({ params }: Props) {
 
         {/* チャット */}
         {showChat && <ChatArea postId={post.id} />}
+
+        {/* 閲覧の記録（「終了しました」の募集は数えない） */}
+        {!memberClosed && <RecordPostView postId={post.id} />}
       </div>
 
       {/* 連絡先（PC サイドバー） */}

@@ -101,7 +101,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 閲覧数と気になる（`post_views`、`post_likes`）:
 
 - 両テーブルとも API から直接は読み書きできない。下の関数（security definer）だけを使う。どれも `visitor_id`（`lib/visitor.ts`）を渡す
-  - `record_post_view(p_post_id, p_visitor_id)`: 閲覧を記録。同じ端末は1日（日本時間）1回まで
+  - `record_post_view(p_post_id, p_visitor_id)`: 閲覧を記録。同じ端末は1日（日本時間）1回まで。そのチームの管理者と、ゲスト募集を投稿した端末の閲覧は記録しない。募集詳細の `RecordPostView` が表示後に呼ぶ（ボットらしき User-Agent と「終了しました」表示の募集では呼ばない）
   - `like_post(p_post_id, p_visitor_id)` / `unlike_post(p_post_id, p_visitor_id)`: 気になるの追加・取り消し。ログイン中なら `user_id` も残る
   - `get_post_like_counts(p_post_ids[], p_visitor_id?)`: 気になる数を複数の募集でまとめて取得（最大200件、誰でも可）。0件の募集は行を返さない。`liked` はその端末が付けたか
   - `get_post_view_count(p_post_id, p_visitor_id?)`: 閲覧数（のべ）。チームの募集はそのチームの管理者、ゲスト募集は投稿した端末（`creator_visitor_id` が一致）だけ。それ以外は null
