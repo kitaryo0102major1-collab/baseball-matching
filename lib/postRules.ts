@@ -24,6 +24,11 @@ export function openPostsOrFilter() {
   return `and(post_type.in.(match,helper),game_date.gte.${todayJST()}),and(post_type.eq.member,renewed_at.gte."${memberListingCutoff()}")`
 }
 
+// 市区町村の絞り込み。同じ都道府県で市区町村が未設定の募集も取得し、表示側で分けて出す（PostgREST の or() に渡す）
+export function cityOrUnsetFilter(city: string) {
+  return `city.eq."${city.replace(/"/g, '')}",city.is.null`
+}
+
 // 絞り込み条件を URL に反映する。router.replace だとサーバーへ再取得が走り、
 // /posts は動的配信なので再描画 → 再度 replace の無限ループになる。
 export function syncListUrl(params: URLSearchParams) {

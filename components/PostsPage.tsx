@@ -7,10 +7,11 @@ import { supabase } from '@/lib/supabase'
 import { todayJST } from '@/lib/dates'
 import { POST_TYPE_LABELS, type MatchPostWithTeam, type FieldStatus, type Level, type PostType } from '@/lib/types'
 import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
-import { postListPath, syncListUrl } from '@/lib/postRules'
+import { cityOrUnsetFilter, postListPath, syncListUrl } from '@/lib/postRules'
 import { PREFECTURES } from '@/lib/prefectures'
+import AppliedFilterChips, { type AppliedChip } from '@/components/AppliedFilterChips'
+import CityGroupedPosts, { PostCount, splitByCity } from '@/components/CityGroupedPosts'
 import CitySelect from '@/components/CitySelect'
-import PostCard from '@/components/PostCard'
 import PostMethodSheet from '@/components/PostMethodSheet'
 import TeamTypePosts from '@/components/TeamTypePosts'
 
@@ -48,7 +49,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
 
     let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).eq('post_type', 'match').gte('game_date', floor)
     if (prefecture) query = query.eq('prefecture', prefecture)
-    if (city) query = query.eq('city', city)
+    if (city) query = query.or(cityOrUnsetFilter(city))
     if (field) query = query.eq('field_status', field)
     if (level) query = query.eq('level', level)
     if (!showDecided) query = query.neq('status', '決定済み')
@@ -100,12 +101,13 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
     if (sort === 'new') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     return (a.game_date ?? '').localeCompare(b.game_date ?? '')
   })
+  const { matched, unset } = splitByCity(sorted, city)
 
   const dateLabel = date
     ? new Date(`${date}T00:00:00`).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
     : ''
 
-  const appliedChips: { key: string; label: string; onRemove: () => void }[] = []
+  const appliedChips: AppliedChip[] = []
   if (prefecture) appliedChips.push({ key: 'prefecture', label: prefecture, onRemove: () => changePrefecture('') })
   if (city) appliedChips.push({ key: 'city', label: city, onRemove: () => setCity('') })
   if (date) appliedChips.push({ key: 'date', label: `${dateLabel}以降`, onRemove: () => setDate('') })
@@ -277,7 +279,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
           {/* 結果ヘッダー */}
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-[var(--ink-sub)]">
-              <span className="font-bold text-[var(--ink)]">{sorted.length}</span> 件の募集
+              <PostCount matched={matched.length} unset={unset.length} city={city} />
             </p>
             <button
               type="button"
@@ -289,23 +291,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
           </div>
 
           {/* 適用中の条件チップ */}
-          {appliedChips.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 mb-4">
-              {appliedChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={chip.onRemove}
-                  className="bg-[var(--green-bg)] text-[var(--green)] text-xs px-2.5 py-1.5 rounded-full inline-flex items-center gap-1"
-                >
-                  {chip.label} <span aria-hidden>✕</span>
-                </button>
-              ))}
-              <button type="button" onClick={resetAll} className="text-xs text-[var(--ink-mute)] underline px-1">
-                すべて解除
-              </button>
-            </div>
-          )}
+          <AppliedFilterChips chips={appliedChips} onResetAll={resetAll} />
 
           {loading ? (
             <div className="text-center py-16 text-[var(--ink-mute)]">読み込み中...</div>
@@ -350,11 +336,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
               </div>
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sorted.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
-            </div>
+            <CityGroupedPosts matched={matched} unset={unset} city={city} prefecture={prefecture} />
           )}
         </div>
       </div>

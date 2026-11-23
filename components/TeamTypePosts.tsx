@@ -6,11 +6,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { todayJST } from '@/lib/dates'
 import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
-import { memberListingCutoff, syncListUrl } from '@/lib/postRules'
+import { cityOrUnsetFilter, memberListingCutoff, syncListUrl } from '@/lib/postRules'
 import { PREFECTURES } from '@/lib/prefectures'
 import { POSITIONS, type MatchPostWithTeam, type Position } from '@/lib/types'
+import AppliedFilterChips, { type AppliedChip } from './AppliedFilterChips'
+import CityGroupedPosts, { PostCount, splitByCity } from './CityGroupedPosts'
 import CitySelect from './CitySelect'
-import PostCard from './PostCard'
 
 // 「どこでも」の募集はどのポジションで絞っても該当するので、絞り込みの選択肢には出さない
 const FILTER_POSITIONS = POSITIONS.filter((p) => p !== 'どこでも')
@@ -54,7 +55,7 @@ export default function TeamTypePosts({ type }: Props) {
       setLoading(true)
       let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).eq('post_type', type)
       if (prefecture) query = query.eq('prefecture', prefecture)
-      if (city) query = query.eq('city', city)
+      if (city) query = query.or(cityOrUnsetFilter(city))
       if (position) query = query.overlaps('positions', [position, 'どこでも'])
 
       if (isHelper) {
@@ -118,6 +119,23 @@ export default function TeamTypePosts({ type }: Props) {
     : posts
   // 決定済みは一覧の後ろに回す（対戦相手タブと同じ）
   const sorted = [...visible].sort((a, b) => Number(a.status === '決定済み') - Number(b.status === '決定済み'))
+  const { matched, unset } = splitByCity(sorted, city)
+
+  // 適用中の条件（対戦相手タブと同じ見た目・動き）
+  const appliedChips: AppliedChip[] = []
+  if (prefecture) appliedChips.push({ key: 'prefecture', label: prefecture, onRemove: () => changePrefecture('') })
+  if (city) appliedChips.push({ key: 'city', label: city, onRemove: () => setCity('') })
+  if (isHelper && date) {
+    const dateLabel = new Date(`${date}T00:00:00`).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
+    appliedChips.push({ key: 'date', label: `${dateLabel}以降`, onRemove: () => setDate('') })
+  }
+  if (position) appliedChips.push({ key: 'position', label: position, onRemove: () => setPosition('') })
+  if (isHelper && weekend) appliedChips.push({ key: 'weekend', label: '土日のみ', onRemove: () => setWeekend(false) })
+  if (isHelper && !showDecided) {
+    appliedChips.push({ key: 'decided', label: '決定済みを除く', onRemove: () => setShowDecided(true) })
+  }
+  if (!isHelper && beginnerOk) appliedChips.push({ key: 'beginner', label: '未経験OK', onRemove: () => setBeginnerOk(false) })
+  if (!isHelper && trialOk) appliedChips.push({ key: 'trial', label: '体験OK', onRemove: () => setTrialOk(false) })
 
   return (
     <div className="px-4 py-6 lg:px-0 lg:flex lg:gap-6 lg:items-start">
@@ -208,9 +226,11 @@ export default function TeamTypePosts({ type }: Props) {
       </aside>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-[var(--ink-sub)] mb-3">
-          <span className="font-bold text-[var(--ink)]">{sorted.length}</span> 件の募集
+        <p className="text-sm text-[var(--ink-sub)] mb-2">
+          <PostCount matched={matched.length} unset={unset.length} city={city} />
         </p>
+
+        <AppliedFilterChips chips={appliedChips} onResetAll={resetAll} />
 
         {loading ? (
           <div className="text-center py-16 text-[var(--ink-mute)]">読み込み中...</div>
@@ -243,11 +263,7 @@ export default function TeamTypePosts({ type }: Props) {
             </div>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sorted.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
+          <CityGroupedPosts matched={matched} unset={unset} city={city} prefecture={prefecture} />
         )}
       </div>
     </div>

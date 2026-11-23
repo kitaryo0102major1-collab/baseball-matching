@@ -32,6 +32,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
   - `memberVisibility()`: メンバー募集は `renewed_at` から60日で一覧から外れ、365日超で終了扱い
   - `memberListingCutoff()`、`openPostsOrFilter()`、`postListPath()`
   - `syncListUrl()`: 一覧の絞り込みを URL に反映する。`router.replace` を使うと `/posts` が無限ループするので必ずこれを使う
+  - `cityOrUnsetFilter()`: 一覧の市区町村の絞り込み。市区町村が未設定の同じ都道府県の募集も取得し、`CityGroupedPosts` で見出しを付けて分けて出す
   - `postPlaceLabel()`: 場所の表示「都道府県 市区町村 ・ 移動範囲」（市区町村がなければ都道府県だけ）。PostCard と募集詳細で使う
 - `postPermissions.ts`: `getPostPermissions()`、`isTeamManager()`（サーバー専用）
 - `postQueries.ts`: 募集の取得
