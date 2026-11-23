@@ -10,7 +10,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 
 | パス | 内容 | 主なコンポーネント |
 |---|---|---|
-| `/` | トップ | `TopPage` |
+| `/` | トップ。未ログインは通常のトップ、ログイン中は選択中チームの「チームホーム」（管理チームがなければ登録を促すカード＋通常のトップ） | `TopPage`、`TeamHome` |
 | `/posts` | 募集一覧。`?type=helper\|member` でタブ切替（なしは対戦相手） | `PostsPage`、`TeamTypePosts` |
 | `/posts/[id]` | 募集詳細・連絡先・公開チャット | `PostApplyCta`、`ChatArea` |
 | `/posts/[id]/edit` | 募集の編集 | `PostForm`、`TeamPostForm` |
@@ -23,7 +23,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 | `/login`、`/auth/callback` | Google ログイン | `GoogleLoginButton` |
 | `/privacy` | プライバシーポリシー | |
 
-共通レイアウトは `app/layout.tsx`（`Header`、`BottomTabBar`）。ページはサーバーで Cookie を読まずに配信しているので、ログイン状態で見た目を出し分けるときは、`<body>` 先頭のスクリプトが表示前に付ける `<html data-auth="in|out">` と、`globals.css` の `.auth-member-only` / `.auth-guest-only` を使う（下部タブの「マイページ／ログイン」がこの方式。表示後の変化は `BottomTabBar` が `onAuthStateChange` で追従）。middleware は `proxy.ts` で、`sb-` Cookie がある訪問者のセッションだけ更新する。
+共通レイアウトは `app/layout.tsx`（`Header`、`BottomTabBar`）。ページはサーバーで Cookie を読まずに配信しているので、ログイン状態で見た目を出し分けるときは、`<body>` 先頭のスクリプトが表示前に付ける `<html data-auth="in|out">` と、`globals.css` の `.auth-member-only` / `.auth-guest-only` を使う（下部タブの「マイページ／ログイン」がこの方式。表示後の変化は `BottomTabBar` が `onAuthStateChange` で追従）。トップページも同じ方式で、`.home-member`（`TeamHome`）と `.home-guest`（`TopPage`）を出し分ける。管理チームがないときは `TeamHome` が `<html data-no-team>` を付けて `TopPage` も見せる。middleware は `proxy.ts` で、`sb-` Cookie がある訪問者のセッションだけ更新する。
 
 ## lib の共通処理
 
@@ -41,7 +41,8 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
   - `getPostContacts()`: RPC `get_post_contacts` で連絡先を取得する。ログイン状態を持つクライアントを渡す
 - `myTeam.ts`: `getMyTeams()`、`requireMyTeams()`（サーバー専用。未ログインは `/login` へ）
 - `useMyTeams.ts`: 自チーム取得の Client 用フック
-- `selectedTeam.ts`: 選択中チームとログイン後の戻り先の Cookie、`isSafeNextPath()`
+- `selectedTeam.ts`: 選択中チームとログイン後の戻り先の Cookie、`isSafeNextPath()`。`setSelectedTeamCookie()` は `SELECTED_TEAM_EVENT` も出す（チームホームが切替に追従する）
+- `lastSeen.ts`: マイページを最後に開いた時刻（チームごと、localStorage）と新着メッセージの判定 `newChatTimes()`。書き込むのはマイページだけ
 - `likes.ts`: 「気になる」の数と押した状態のクライアント側ストア。`LikeButton` が使い、同じタイミングで表示されたボタンの分を `get_post_like_counts` 1回（200件ごと）でまとめて取得する。押したときは見た目をすぐ変え、失敗したら戻す
 - `postRules.ts` の `isPostOpen()`: 受付中か（気になるを押せるか）の判定
 - `visitor.ts`: 端末ごとのランダムID（localStorage の `visitor_id`）。`getVisitorId()` は読むだけ、`getOrCreateVisitorId()` はなければ作って保存する。localStorage が使えないときはどちらも null を返すので、呼び出し側は記録を省く

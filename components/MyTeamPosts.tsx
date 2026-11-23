@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { readLastSeen, writeLastSeen } from '@/lib/lastSeen'
 import { fetchViewCounts } from '@/lib/postStats'
 import type { MatchPost } from '@/lib/types'
 import MemberRenewCard from './MemberRenewCard'
@@ -22,24 +23,6 @@ interface Props {
   open: MyTeamPost[]
   decided: MyTeamPost[]
   past: MyTeamPost[]
-}
-
-function storageKey(teamId: string) {
-  return `mypage_last_seen_${teamId}`
-}
-
-function readLastSeen(teamId: string): string | null {
-  try {
-    return window.localStorage.getItem(storageKey(teamId))
-  } catch {
-    return null
-  }
-}
-
-function writeLastSeen(teamId: string, value: string) {
-  try {
-    window.localStorage.setItem(storageKey(teamId), value)
-  } catch {}
 }
 
 export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, decided, past }: Props) {

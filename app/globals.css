@@ -25,3 +25,9 @@ html[data-auth='in'] .auth-guest-only,
 html:not([data-auth='in']) .auth-member-only {
   display: none;
 }
+
+/* トップページ: ログイン中はチームホーム、未ログイン・管理チームなし（data-no-team は TeamHome が付ける）は通常のトップ */
+html[data-auth='in']:not([data-no-team]) .home-guest,
+html:not([data-auth='in']) .home-member {
+  display: none;
+}

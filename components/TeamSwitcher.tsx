@@ -8,9 +8,11 @@ import TeamAvatar from './TeamAvatar'
 interface Props {
   teams: TeamSummary[]
   selectedId: string
+  // 指定がなければサーバーから描画し直す（マイページ）。チームホームのようにブラウザ側で描く画面は自分で切り替える
+  onSelect?: (teamId: string) => void
 }
 
-export default function TeamSwitcher({ teams, selectedId }: Props) {
+export default function TeamSwitcher({ teams, selectedId, onSelect }: Props) {
   const router = useRouter()
 
   if (teams.length < 2) return null
@@ -18,7 +20,8 @@ export default function TeamSwitcher({ teams, selectedId }: Props) {
   function select(teamId: string) {
     if (teamId === selectedId) return
     setSelectedTeamCookie(teamId)
-    router.refresh()
+    if (onSelect) onSelect(teamId)
+    else router.refresh()
   }
 
   return (

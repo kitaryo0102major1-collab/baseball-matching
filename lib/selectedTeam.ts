@@ -1,8 +1,12 @@
 export const SELECTED_TEAM_COOKIE = 'selected_team_id'
 export const AUTH_NEXT_COOKIE = 'auth_next'
 
+// 選択中チームが変わったことを、サーバーで描画しない画面（チームホーム）に知らせるイベント
+export const SELECTED_TEAM_EVENT = 'selected-team-change'
+
 export function setSelectedTeamCookie(teamId: string) {
   document.cookie = `${SELECTED_TEAM_COOKIE}=${encodeURIComponent(teamId)}; path=/; max-age=31536000; samesite=lax`
+  window.dispatchEvent(new CustomEvent<string>(SELECTED_TEAM_EVENT, { detail: teamId }))
 }
 
 export function clearSelectedTeamCookie() {
