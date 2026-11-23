@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase/client'
 import { useMyTeams } from '@/lib/useMyTeams'
-import type { FieldStatus, Level, MatchPostInsert } from '@/lib/types'
+import { TRAVEL_RANGES, type FieldStatus, type Level, type MatchPostInsert, type TravelRange } from '@/lib/types'
 import { PREFECTURES } from '@/lib/prefectures'
+import CitySelect, { cityOptions } from '@/components/CitySelect'
 import Logo from '@/components/Logo'
 import PostCreatedScreen from '@/components/PostCreatedScreen'
 import TeamAvatar from '@/components/TeamAvatar'
@@ -13,8 +15,10 @@ import TeamAvatar from '@/components/TeamAvatar'
 type Phase =
   | 'team'
   | 'prefecture'
+  | 'city'
   | 'field_status'
   | 'venue_name'
+  | 'travel_range'
   | 'area_detail'
   | 'game_date'
   | 'time_choice'
@@ -31,8 +35,10 @@ interface Answers {
   snsX: string
   snsInstagram: string
   prefecture: string
+  city: string
   fieldStatus: FieldStatus | null
   venueName: string
+  travelRange: TravelRange | null
   areaDetail: string
   gameDate: string
   timeChoice: TimeChoice
@@ -53,7 +59,9 @@ interface Snapshot {
   phase: Phase
   messages: Message[]
   answers: Answers
+  title: string
   prefectureDraft: string
+  cityDraft: string
   venueNameDraft: string
   areaDetailDraft: string
   gameDateDraft: string
@@ -76,8 +84,10 @@ const LEVEL_SHORT: Record<Level, string> = {
 const BOT_MESSAGES: Record<Phase, string> = {
   team: 'どのチームとして募集しますか？',
   prefecture: '都道府県を教えてください',
+  city: '市区町村を教えてください',
   field_status: 'グラウンドの手配はできますか？',
   venue_name: 'グラウンド名を教えてください',
+  travel_range: 'どこまで移動できますか？（任意）',
   area_detail: 'どのあたりで試合したいですか？\n市区町村や最寄り駅などを教えてください（任意）',
   game_date: '試合希望日を教えてください',
   time_choice: '時間帯はいつ頃希望ですか？（任意）',
@@ -95,7 +105,22 @@ function formatDateDisplay(dateStr: string) {
 
 function buildTitle(a: Answers): string {
   if (!a.prefecture || !a.level) return ''
-  return `${a.prefecture}で対戦相手募集（Lv.${a.level}）`
+  return `${a.prefecture}${a.city}で対戦相手募集（Lv.${a.level}）`
+}
+
+const POPULAR_CITY_LIMIT = 6
+
+// 過去の募集で多い市区町村。選択肢にない名前（北方領土の村や表記ゆれ）は数えない
+function topCities(prefecture: string, cities: string[]): string[] {
+  const options = cityOptions(prefecture)
+  const counts = new Map<string, number>()
+  for (const c of cities) {
+    if (options.includes(c)) counts.set(c, (counts.get(c) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || options.indexOf(a[0]) - options.indexOf(b[0]))
+    .slice(0, POPULAR_CITY_LIMIT)
+    .map(([c]) => c)
 }
 
 const QUICK_REPLY_CLASS =
@@ -116,8 +141,10 @@ export default function QuickPostPage() {
     snsX: '',
     snsInstagram: '',
     prefecture: '',
+    city: '',
     fieldStatus: null,
     venueName: '',
+    travelRange: null,
     areaDetail: '',
     gameDate: '',
     timeChoice: null,
@@ -135,6 +162,9 @@ export default function QuickPostPage() {
   const [createdId, setCreatedId] = useState<string | null>(null)
 
   const [prefectureDraft, setPrefectureDraft] = useState('')
+  const [cityDraft, setCityDraft] = useState('')
+  const [cityPickerOpen, setCityPickerOpen] = useState(false)
+  const [popularCities, setPopularCities] = useState<{ prefecture: string; cities: string[] } | null>(null)
   const [venueNameDraft, setVenueNameDraft] = useState('')
   const [areaDetailDraft, setAreaDetailDraft] = useState('')
   const [gameDateDraft, setGameDateDraft] = useState('')
@@ -155,6 +185,31 @@ export default function QuickPostPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamOptions.length])
 
+  // 市区町村の質問に来たら、その都道府県で募集の多い市区町村を集計する
+  const cityPrefecture = phase === 'city' ? answers.prefecture : ''
+  useEffect(() => {
+    if (!cityPrefecture || popularCities?.prefecture === cityPrefecture) return
+    let cancelled = false
+
+    async function load() {
+      const { data } = await supabase
+        .from('match_posts')
+        .select('city')
+        .eq('prefecture', cityPrefecture)
+        .not('city', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1000)
+      if (cancelled) return
+      const cities = ((data ?? []) as { city: string }[]).map((r) => r.city)
+      setPopularCities({ prefecture: cityPrefecture, cities: topCities(cityPrefecture, cities) })
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [cityPrefecture, popularCities?.prefecture])
+
   if (createdId) {
     return <PostCreatedScreen postId={createdId} />
   }
@@ -164,7 +219,9 @@ export default function QuickPostPage() {
       phase,
       messages,
       answers,
+      title,
       prefectureDraft,
+      cityDraft,
       venueNameDraft,
       areaDetailDraft,
       gameDateDraft,
@@ -185,6 +242,7 @@ export default function QuickPostPage() {
     ])
     if (patch) setAnswers((a) => ({ ...a, ...patch }))
     if (next === 'confirm') setTitle((t) => t || buildTitle({ ...answers, ...patch }))
+    setCityPickerOpen(false)
     setPhase(next)
   }
 
@@ -205,6 +263,8 @@ export default function QuickPostPage() {
         snsX: '',
         snsInstagram: '',
         prefecture: '',
+        city: '',
+        travelRange: null,
         level: null,
         contactEmail: '',
         contactPhone: '',
@@ -214,12 +274,16 @@ export default function QuickPostPage() {
     }
     setAreaDetailDraft(team.area_detail ?? '')
     setPrefectureDraft(team.prefecture)
-    advance(team.name, 'field_status', {
+    setCityDraft('')
+    // 都道府県と同じく、チームに市区町村があれば質問を飛ばす
+    advance(team.name, team.city ? 'field_status' : 'city', {
       teamId: team.id,
       teamName: team.name,
       snsX: team.sns_x ?? '',
       snsInstagram: team.sns_instagram ?? '',
       prefecture: team.prefecture,
+      city: team.city ?? '',
+      travelRange: team.travel_range,
       level: team.level,
       contactEmail: team.contact_email ?? '',
       contactPhone: team.contact_phone ?? '',
@@ -233,7 +297,10 @@ export default function QuickPostPage() {
     setPhase(last.phase)
     setMessages(last.messages)
     setAnswers(last.answers)
+    setTitle(last.title)
     setPrefectureDraft(last.prefectureDraft)
+    setCityDraft(last.cityDraft)
+    setCityPickerOpen(false)
     setVenueNameDraft(last.venueNameDraft)
     setAreaDetailDraft(last.areaDetailDraft)
     setGameDateDraft(last.gameDateDraft)
@@ -247,12 +314,24 @@ export default function QuickPostPage() {
 
   function handlePrefectureNext() {
     if (!prefectureDraft) return
-    advance(prefectureDraft, 'field_status', { prefecture: prefectureDraft })
+    setCityDraft('')
+    advance(prefectureDraft, 'city', { prefecture: prefectureDraft, city: '' })
+  }
+
+  function handleCity(city: string) {
+    if (!city) return
+    advance(city, 'field_status', { city })
   }
 
   function handleFieldStatus(value: FieldStatus) {
     const label = value === 'ok' ? 'できる' : 'できない'
-    advance(label, value === 'ok' ? 'venue_name' : 'area_detail', { fieldStatus: value })
+    // 移動範囲はグラウンドなしのときだけ聞く。チームの値があれば聞かない
+    const next = value === 'ok' ? 'venue_name' : answers.travelRange ? 'area_detail' : 'travel_range'
+    advance(label, next, { fieldStatus: value })
+  }
+
+  function handleTravelRange(range: TravelRange | null) {
+    advance(range ?? 'スキップ', 'area_detail', { travelRange: range })
   }
 
   function handleAreaDetailNext(skip: boolean) {
@@ -303,13 +382,15 @@ export default function QuickPostPage() {
   }
 
   async function handleConfirmSubmit() {
-    if (!title.trim() || !answers.prefecture || !answers.fieldStatus || !answers.gameDate || !answers.level) return
+    if (!title.trim() || !answers.prefecture || !answers.city || !answers.fieldStatus || !answers.gameDate || !answers.level) return
 
     setSubmitting(true)
     setSubmitError(false)
     const payload: MatchPostInsert = {
       title: title.trim(),
       prefecture: answers.prefecture,
+      city: answers.city || null,
+      travel_range: answers.travelRange,
       field_status: answers.fieldStatus,
       venue_name: answers.fieldStatus === 'ok' ? answers.venueName : null,
       area_detail: answers.fieldStatus === 'ng' ? answers.areaDetail || null : null,
@@ -409,7 +490,7 @@ export default function QuickPostPage() {
                 チームとしてではなく募集する
               </button>
               <p className="text-xs text-[var(--ink-mute)]">
-                チームを選ぶと、都道府県・レベル・連絡先はチームの情報を使います（投稿前に確認できます）
+                チームを選ぶと、都道府県・市区町村・移動できる範囲・レベル・連絡先はチームの情報を使います（登録されている項目のみ。投稿前に確認できます）
               </p>
             </div>
           )}
@@ -430,6 +511,72 @@ export default function QuickPostPage() {
               </select>
               <button type="button" onClick={handlePrefectureNext} disabled={!prefectureDraft} className={NEXT_BUTTON_CLASS}>
                 次へ
+              </button>
+            </div>
+          )}
+
+          {phase === 'city' && (
+            <div className="space-y-3">
+              {popularCities?.prefecture !== answers.prefecture ? (
+                <p className="text-sm text-[var(--ink-mute)] text-center py-2">読み込み中...</p>
+              ) : popularCities.cities.length > 0 && !cityPickerOpen ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {popularCities.cities.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleCity(c)}
+                        className={`${QUICK_REPLY_CLASS} hover:border-[var(--green)] hover:bg-[var(--green-bg)]`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCityPickerOpen(true)}
+                    className="w-full border border-[var(--line)] text-[var(--ink-sub)] font-semibold py-2.5 rounded-lg text-sm"
+                  >
+                    ほかの市区町村を選ぶ
+                  </button>
+                </>
+              ) : (
+                <>
+                  <CitySelect
+                    prefecture={answers.prefecture}
+                    value={cityDraft}
+                    onChange={setCityDraft}
+                    className={FIELD_INPUT_CLASS}
+                  />
+                  <button type="button" onClick={() => handleCity(cityDraft)} disabled={!cityDraft} className={NEXT_BUTTON_CLASS}>
+                    次へ
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {phase === 'travel_range' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                {TRAVEL_RANGES.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => handleTravelRange(r)}
+                    className={`${QUICK_REPLY_CLASS} hover:border-[var(--green)] hover:bg-[var(--green-bg)]`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTravelRange(null)}
+                className="w-full border border-[var(--line)] text-[var(--ink-sub)] font-semibold py-2.5 rounded-lg text-sm"
+              >
+                スキップ
               </button>
             </div>
           )}
@@ -651,11 +798,21 @@ export default function QuickPostPage() {
               <span className="text-[var(--ink)] font-medium text-right">{answers.prefecture}</span>
             </div>
             <div className="flex justify-between gap-3">
+              <span className="text-[var(--ink-mute)] shrink-0">市区町村</span>
+              <span className="text-[var(--ink)] font-medium text-right">{answers.city}</span>
+            </div>
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--ink-mute)] shrink-0">グラウンド</span>
               <span className="text-[var(--ink)] font-medium text-right">
                 {answers.fieldStatus === 'ok' ? `あり（${answers.venueName}）` : 'なし'}
               </span>
             </div>
+            {answers.travelRange && (
+              <div className="flex justify-between gap-3">
+                <span className="text-[var(--ink-mute)] shrink-0">移動できる範囲</span>
+                <span className="text-[var(--ink)] font-medium text-right">{answers.travelRange}</span>
+              </div>
+            )}
             {answers.fieldStatus === 'ng' && answers.areaDetail && (
               <div className="flex justify-between gap-3">
                 <span className="text-[var(--ink-mute)] shrink-0">希望エリア</span>
@@ -688,7 +845,7 @@ export default function QuickPostPage() {
             </div>
             {answers.teamId && (
               <p className="text-xs text-[var(--ink-mute)] pt-1 leading-relaxed">
-                都道府県・レベル・連絡先はチームの情報を使っています。チームページで非公開にしている連絡先も、この募集には表示されます。変更したい場合は投稿後に「募集内容を修正する」から直せます。
+                都道府県・レベル・連絡先（登録されていれば市区町村・移動できる範囲も）はチームの情報を使っています。チームページで非公開にしている連絡先も、この募集には表示されます。変更したい場合は投稿後に「募集内容を修正する」から直せます。
               </p>
             )}
           </div>
