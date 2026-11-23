@@ -171,6 +171,12 @@ function TeamHomeContent({
             チーム情報を編集
           </Link>
         </div>
+        <Link
+          href="/mypage/players"
+          className="block text-center mt-3 border border-[var(--line)] text-[var(--ink)] font-bold py-2.5 rounded-xl text-sm hover:border-[var(--green)]/40 transition-colors"
+        >
+          選手名簿
+        </Link>
       </section>
       <TeamSwitcher teams={teams} selectedId={team.id} onSelect={onSelect} />
 

@@ -112,6 +112,12 @@ export default async function MyPage() {
           </Link>
         </div>
         <Link
+          href="/mypage/players"
+          className="block text-center mt-3 border border-[var(--line)] text-[var(--ink)] font-bold py-3 rounded-xl text-sm hover:border-[var(--green)]/40 transition-colors"
+        >
+          選手名簿
+        </Link>
+        <Link
           href="/mypage/team/members"
           className="block text-center mt-3 border border-[var(--line)] text-[var(--ink)] font-bold py-3 rounded-xl text-sm hover:border-[var(--green)]/40 transition-colors"
         >

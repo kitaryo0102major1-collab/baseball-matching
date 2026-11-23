@@ -193,3 +193,26 @@ export interface MatchPostInsert {
   // ゲスト募集を投稿した端末（lib/visitor.ts）。書き込みだけで、API からは読めない
   creator_visitor_id?: string | null
 }
+
+// 選手名簿（players）。real_name は管理者だけが読める
+export type Throws = 'R' | 'L'
+export type Bats = 'R' | 'L' | 'S'
+// 守備位置は '1'（投）〜'9'（右）
+export type FieldPosition = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+
+export interface Player {
+  id: string
+  team_id: string
+  real_name: string | null
+  display_name: string
+  number: string | null
+  throws: Throws | null
+  bats: Bats | null
+  positions: FieldPosition[]
+  is_helper: boolean
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type PlayerInput = Pick<Player, 'real_name' | 'display_name' | 'number' | 'throws' | 'bats' | 'positions' | 'is_helper' | 'active'>
