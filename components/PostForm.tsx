@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useMyTeams } from '@/lib/useMyTeams'
+import { getOrCreateVisitorId } from '@/lib/visitor'
 import {
   TRAVEL_RANGES,
   type FieldStatus,
@@ -242,6 +243,8 @@ export default function PostForm({ mode, initialPost, initialContacts }: Props) 
       payload.team_id = teamId || null
       payload.created_by = myTeams.userId
     }
+    // ゲスト募集は、あとで閲覧数を見られるよう投稿した端末を残す
+    if (!payload.team_id) payload.creator_visitor_id = getOrCreateVisitorId()
 
     const { data, error } = await supabase.from('match_posts').insert(payload).select('id').single()
     setSubmitting(false)

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase/client'
 import { useMyTeams } from '@/lib/useMyTeams'
+import { getOrCreateVisitorId } from '@/lib/visitor'
 import { TRAVEL_RANGES, type FieldStatus, type Level, type MatchPostInsert, type TravelRange } from '@/lib/types'
 import { PREFECTURES } from '@/lib/prefectures'
 import CitySelect, { cityOptions } from '@/components/CitySelect'
@@ -411,6 +412,8 @@ export default function QuickPostPage() {
         payload.sns_instagram = answers.snsInstagram || null
       }
     }
+    // ゲスト募集は、あとで閲覧数を見られるよう投稿した端末を残す
+    if (!payload.team_id) payload.creator_visitor_id = getOrCreateVisitorId()
 
     const { data, error } = await createClient().from('match_posts').insert(payload).select('id').single()
     setSubmitting(false)

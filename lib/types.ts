@@ -190,4 +190,6 @@ export interface MatchPostInsert {
   created_by?: string | null
   city?: string | null
   travel_range?: TravelRange | null
+  // ゲスト募集を投稿した端末（lib/visitor.ts）。書き込みだけで、API からは読めない
+  creator_visitor_id?: string | null
 }

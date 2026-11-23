@@ -42,6 +42,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - `myTeam.ts`: `getMyTeams()`、`requireMyTeams()`（サーバー専用。未ログインは `/login` へ）
 - `useMyTeams.ts`: 自チーム取得の Client 用フック
 - `selectedTeam.ts`: 選択中チームとログイン後の戻り先の Cookie、`isSafeNextPath()`
+- `visitor.ts`: 端末ごとのランダムID（localStorage の `visitor_id`）。`getVisitorId()` は読むだけ、`getOrCreateVisitorId()` はなければ作って保存する。localStorage が使えないときはどちらも null を返すので、呼び出し側は記録を省く
 - `seo.ts`: `pageMetadata()`。canonical と OG を毎回まとめて指定する（子の `openGraph` は親を丸ごと置き換えるため）
 - `types.ts`、`prefectures.ts`: 型と定数（移動できる範囲の選択肢は `TRAVEL_RANGES`）
 - `municipalities.ts`: 全国の市区町村一覧 `MUNICIPALITIES`（都道府県ごと、`{ code, name }`）
@@ -76,6 +77,8 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 | `team_profiles`（ビュー） | チームの公開情報。連絡先は `contact_public` のときだけ返す | 誰でも | 不可 |
 | `team_members` | チームの管理者 | 同じチームの管理者 | 追加は関数・トリガー経由のみ。削除は管理者 |
 | `team_invites` | 招待リンク | 管理者 | 管理者。受諾は RPC `accept_team_invite` |
+| `post_views` | 募集の閲覧（同じ端末は1募集1日1回） | 不可（関数経由） | 不可（関数経由） |
+| `post_likes` | 募集の「気になる」（同じ端末は1募集1回） | 不可（関数経由） | 不可（関数経由） |
 
 `match_posts` の書き込み権限:
 
@@ -95,9 +98,19 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - 書き込みは今までどおり `insert` / `update` でできる
 - 掲載が終わったゲスト募集の編集画面では連絡先を読めないので、空欄の項目は送信せず既存の値を残す（`PostForm` の `contactsHidden`）
 
+閲覧数と気になる（`post_views`、`post_likes`）:
+
+- 両テーブルとも API から直接は読み書きできない。下の関数（security definer）だけを使う。どれも `visitor_id`（`lib/visitor.ts`）を渡す
+  - `record_post_view(p_post_id, p_visitor_id)`: 閲覧を記録。同じ端末は1日（日本時間）1回まで
+  - `like_post(p_post_id, p_visitor_id)` / `unlike_post(p_post_id, p_visitor_id)`: 気になるの追加・取り消し。ログイン中なら `user_id` も残る
+  - `get_post_like_counts(p_post_ids[], p_visitor_id?)`: 気になる数を複数の募集でまとめて取得（最大200件、誰でも可）。0件の募集は行を返さない。`liked` はその端末が付けたか
+  - `get_post_view_count(p_post_id, p_visitor_id?)`: 閲覧数（のべ）。チームの募集はそのチームの管理者、ゲスト募集は投稿した端末（`creator_visitor_id` が一致）だけ。それ以外は null
+- `match_posts.creator_visitor_id`: ゲスト募集を投稿した端末。投稿時に保存し（`PostForm`、`QuickPostPage`）、select は grant していないので API からは読めない
+- 端末IDは作り直せるため、閲覧数・気になる数の水増しを完全には防げない（同じ端末の連打を防ぐだけ）
+
 トリガーと定期処理:
 
-- `lock_post_ownership`: `team_id`、`created_by`、`post_type`、`source_post_id` は投稿後に付け替え不可
+- `lock_post_ownership`: `team_id`、`created_by`、`post_type`、`source_post_id`、`creator_visitor_id` は投稿後に付け替え不可
 - `check_post_source`: 助っ人募集の引き継ぎ元は同じチームの対戦相手募集のみ
 - `delete_team_only_posts`: チーム削除で助っ人・メンバー募集も削除。対戦相手募集はゲスト募集として残る
 - `prevent_removing_last_member`: 最後の管理者は削除不可
