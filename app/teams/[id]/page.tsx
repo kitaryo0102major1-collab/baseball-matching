@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const team = await getTeam(id)
   if (!team) return { title: 'チームが見つかりません', robots: { index: false } }
 
-  const area = [team.prefecture, team.area_detail].filter(Boolean).join(' ')
+  const area = [team.prefecture, team.city, team.area_detail].filter(Boolean).join(' ')
   const days = team.activity_days.length ? `活動日は${team.activity_days.join('・')}。` : ''
   const summary = `${area}で活動する草野球チーム「${team.name}」（Lv.${team.level}）のチームページです。${days}`
   const description = team.description ? `${summary}${truncateText(team.description, 60)}` : summary

@@ -53,7 +53,7 @@ const getPostTeam = cache(async (teamId: string) => {
 })
 
 function buildSummary(post: MatchPost, teamName: string | undefined) {
-  const place = [post.prefecture, post.area_detail, post.venue_name].filter(Boolean).join(' ')
+  const place = [post.prefecture, post.city, post.area_detail, post.venue_name].filter(Boolean).join(' ')
   const startTime = formatTime(post.start_time)
   const date = post.game_date ? `${formatDateWithWeekday(post.game_date)}${startTime ? ` ${startTime}〜` : ''}` : null
 
