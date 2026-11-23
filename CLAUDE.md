@@ -4,6 +4,8 @@
 
 Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push すると Vercel に自動デプロイされる。構成を変えたらここも更新する。
 
+テストは `npm test`（vitest。今はスコアの計算 `lib/scoring/*.test.ts` だけ）。
+
 ## 主要なページ
 
 `app/` の page はすべて Server Component。画面の操作部分は `components/` の Client Component に置く。`'use client'` のページからは metadata を export できないため、この形を崩さない。
@@ -20,6 +22,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 | `/mypage` | 自チームの募集管理 | `MyTeamPosts`、`MemberRenewCard` |
 | `/mypage/team`、`/mypage/team/new`、`/mypage/team/members` | チームの編集・作成・管理者と招待 | `TeamForm`、`MembersManager` |
 | `/mypage/games`、`/mypage/games/new`、`/mypage/games/[id]` | チームの試合。年度ごとの一覧（`?year=`、年度の開始月はチーム設定）・作成・試合情報の編集と削除。打順・入力はまだない | `TeamGameCreate`、`TeamGameManager`、`GameInfoForm` |
+| `/mypage/games/[id]/input`、`/scores/[id]/input` | 打席の入力（今は自チームの攻撃だけ。守備の回は「準備中」と出して次の攻撃へ進める。打席間のプレー・オフライン保存はまだ） | `ScoreInput`（共通）、`TeamScoreInput`、`GuestScoreInput` |
 | `/mypage/games/[id]/lineup`、`/scores/[id]/lineup` | 打順と交代（スタメン・交代の記録と取り消し・相手の打順）。打席入力はまだない | `LineupEditor`（共通）、`TeamLineup`、`GuestLineup` |
 | `/scores` | ゲストの「この端末で記録した試合」（後のタスクで紹介ページにし、一覧は部品のまま下部に置く） | `GuestGamesList` |
 | `/scores/new`、`/scores/[id]/edit` | ゲストの試合の作成・試合情報の編集と削除。編集用リンクは `/scores/[id]/edit#token` | `GuestGameCreate`、`GuestGameEditor`、`GuestEditLink` |
@@ -53,6 +56,10 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - `visitor.ts`: 端末ごとのランダムID（localStorage の `visitor_id`）。`getVisitorId()` は読むだけ、`getOrCreateVisitorId()` はなければ作って保存する。localStorage が使えないときはどちらも null を返すので、呼び出し側は記録を省く
 - `seo.ts`: `pageMetadata()`。canonical と OG を毎回まとめて指定する（子の `openGraph` は親を丸ごと置き換えるため）
 - `games.ts`: 試合の定数（種類・守備の記録方式とその説明・予定イニングと打順人数の範囲）と計算（`gameScore()` 得点、`gameResult()` 勝敗、`seasonYear()`・`seasonRange()`・`seasonLabel()` 年度、`gameDateLabel()`）
+- `scoring/`: スコアの計算（画面・保存から独立した純粋な関数。テストあり）
+  - `state.ts`: `computeGameState()` 打席と走者の動きから、今の回・表裏・アウト・塁上・得点・次の打者を出す。同じ打席の走者の動きはまとめて1つのプレーとして適用する。守備の回は、3アウト・合計モードの回の得点・画面で「進む」を押した回で終わり扱い
+  - `predict.ts`: `predictPlay()` 打席結果ごとの走者の動き・打点の予想、`rbiFor()` 打点のルール（失策・併殺・振り逃げでの得点、暴投・捕逸などでの得点は打点なし、押し出しはあり）。3アウト目が入るプレーでは得点を予想しない。併殺は一塁走者（いなければ先の塁の走者）と打者をアウトにする
+  - `record.ts`: `buildOffenseRecord()` 入力した1打席を plate_appearances 1行と runner_events にする（先の塁の走者から順に seq を振る）
 - `lineup.ts`: 打順と交代の扱い（`LineupRow`、今その打順にいる人 `currentRow()`、守備位置の重複、再出場できる人、交代の種類）。ゲストが前に使った名前（localStorage `guest_player_names`）と、名簿の案内を閉じた印（`hide_roster_tip`）
 - `useGuestGame.ts`: ゲストの試合をトークンを確かめてから読むフック、`saveScoreGame()`（変えた項目だけ渡し、ほかの子の行は読んだものを送り返す）
 - `guestGames.ts`: ゲストの試合の編集用トークンを試合IDとセットで localStorage（`guest_games`）に保存する。読み書きは try/catch で、使えないときは空として扱う。`guestEditUrl()` は編集用リンク（トークンは # の後ろでサーバーに送らない）
@@ -177,6 +184,8 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - 試合の画面: 試合情報のフォーム `GameInfoForm` はゲスト・チーム共通（自チーム名はゲストだけ）。終わり方（`end_reason`）は確定時に入れるのでフォームにない。打順人数は「9人／全員打ち（10〜30人）」。予定イニングの初期値はチームなら `teams.innings_per_game`、ゲストは7
 - ゲストの試合の画面は匿名クライアント（`@/lib/supabase`）で関数を呼ぶ。試合情報だけを保存するときも、`get_score_game` で読んだ子の行を `save_guest_game` にそのまま送り返す（送らないと消える）
 - 打順と交代（`game_lineups`）: 先発は `entry_type = 先発`・`entered_at` null。交代は同じ `batting_slot` に行を足し、`entered_at`（何打席目から）→ `created_at` の順に並べて最後の行が今いる人。臨時代走・臨時代打は今いる人に数えない。投手交代は `entry_type = 守備`・`position = 1`。DH のときの投手は `batting_slot` null の行。再出場は先発で出て今は交代している人だけ
+- 打席入力の保存: チームは plate_appearances を insert してから runner_events を insert（走者の動きが失敗したら打席も消す）。取り消しは打席の delete（走者の動きは cascade で消える）。ゲストは `saveScoreGame()` で打席・走者の動きを丸ごと送る
+- runner_events の reason: 打者の動きは安打・凡打が「打球」、四死球が「四死球」、三振・振り逃げが「その他」、失策出塁は「失策」、野選は「野選」、妨害は「妨害」
 - 打順の保存: チームは消した行を delete してから残りを upsert、ゲストは `save_guest_game` で丸ごと入れ替え（`created_at` は送った値が残る）
 - `games.opponent_lineup`（text[]）: 相手の打順の名前。打順番号 = 位置 + 1、名前は任意で末尾の空欄は保存しない。守備を「相手も1打席ずつ」で記録する試合だけで使う
 - `/scores` 以下はすべて noindex で、sitemap からも外している（`next-sitemap.config.js` の exclude。紹介ページにしたら `/scores` だけ外す）

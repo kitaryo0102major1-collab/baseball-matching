@@ -55,6 +55,7 @@ export default function GuestLineup({ gameId }: { gameId: string }) {
         initialRows={data.lineups.map(toLineupRow)}
         people={{ kind: 'guest' }}
         nextSeq={nextSeq}
+        inputHref={`/scores/${gameId}/input`}
         onSave={save}
       />
     </>

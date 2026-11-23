@@ -61,6 +61,7 @@ export default function TeamLineup({ game, teamId, initialRows, players, nextSeq
       initialRows={initialRows}
       people={{ kind: 'team', players, addHelper }}
       nextSeq={nextSeq}
+      inputHref={`/mypage/games/${game.id}/input`}
       onSave={save}
     />
   )

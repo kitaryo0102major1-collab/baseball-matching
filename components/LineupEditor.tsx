@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import {
   LINEUP_POSITIONS,
@@ -37,6 +38,8 @@ interface Props {
   people: LineupPeople
   // 交代の「何打席目から」の初期値（今ある打席の次）
   nextSeq: number
+  // 打席の入力画面
+  inputHref: string
   // 失敗したらエラーメッセージを返す
   onSave: (rows: LineupRow[], opponentLineup: string[]) => Promise<string | null>
 }
@@ -66,7 +69,7 @@ function slotLabel(slot: number | null) {
   return slot === null ? '投手' : `${slot}番`
 }
 
-export default function LineupEditor({ game, initialRows, people, nextSeq, onSave }: Props) {
+export default function LineupEditor({ game, initialRows, people, nextSeq, inputHref, onSave }: Props) {
   const [rows, setRows] = useState<LineupRow[]>(initialRows)
   const [players, setPlayers] = useState<Player[]>(people.kind === 'team' ? people.players : [])
   const [opponentLineup, setOpponentLineup] = useState<string[]>(() => {
@@ -396,10 +399,13 @@ export default function LineupEditor({ game, initialRows, people, nextSeq, onSav
         </section>
       )}
 
-      <div className="bg-[var(--bg)] border border-dashed border-[var(--line)] rounded-2xl p-4 text-center">
-        <p className="text-sm font-bold text-[var(--ink-sub)]">次は打席の入力（準備中）</p>
-        <p className="text-xs text-[var(--ink-mute)] mt-1">打席の入力は、もうすぐ使えるようになります。</p>
-      </div>
+      <Link
+        href={inputHref}
+        className="block text-center bg-[var(--green)] text-white font-bold py-3.5 rounded-xl text-base hover:opacity-90 transition-opacity"
+      >
+        打席を入力する
+      </Link>
+      {dirty && <p className="text-xs text-center text-[var(--ink-mute)] -mt-3">打順の変更を保存してから進んでください。</p>}
 
       <div className="fixed bottom-0 inset-x-0 z-40 bg-[var(--surface)]/95 backdrop-blur border-t border-[var(--line)] px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <div className="max-w-md mx-auto flex items-center gap-3">

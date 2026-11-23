@@ -41,15 +41,20 @@ export async function saveScoreGame(
   id: string,
   token: string,
   data: ScoreGame,
-  changes: { game?: Record<string, unknown>; lineups?: Record<string, unknown>[] }
+  changes: {
+    game?: Record<string, unknown>
+    lineups?: Record<string, unknown>[]
+    plate_appearances?: object[]
+    runner_events?: object[]
+  }
 ) {
   const { data: result, error } = await supabase.rpc('save_guest_game', {
     p_game_id: id,
     p_token: token,
     p_game: changes.game ?? {},
     p_lineups: changes.lineups ?? data.lineups,
-    p_plate_appearances: data.plate_appearances,
-    p_runner_events: data.runner_events,
+    p_plate_appearances: changes.plate_appearances ?? data.plate_appearances,
+    p_runner_events: changes.runner_events ?? data.runner_events,
     p_pitching_summaries: data.pitching_summaries,
     p_pitching_decisions: data.pitching_decisions,
     p_expected_updated_at: data.game.updated_at,

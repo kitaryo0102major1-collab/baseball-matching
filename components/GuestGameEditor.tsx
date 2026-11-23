@@ -10,7 +10,7 @@ import { GUEST_GAME_MESSAGES, saveScoreGame, useGuestGame } from '@/lib/useGuest
 import type { GameInfoInput } from '@/lib/types'
 import ConfirmDialog from './ConfirmDialog'
 import GameInfoForm from './GameInfoForm'
-import GameInfoSummary, { GameStatusBadge, NextStepLink } from './GameInfoSummary'
+import GameInfoSummary, { GameStatusBadge, NextStepLinks } from './GameInfoSummary'
 import GuestEditLink from './GuestEditLink'
 
 export default function GuestGameEditor({ gameId }: { gameId: string }) {
@@ -104,7 +104,7 @@ export default function GuestGameEditor({ gameId }: { gameId: string }) {
         )}
       </section>
 
-      <NextStepLink href={`/scores/${gameId}/lineup`} />
+      <NextStepLinks inputHref={`/scores/${gameId}/input`} lineupHref={`/scores/${gameId}/lineup`} />
 
       <section className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 space-y-3">
         <h2 className="text-base font-bold text-[var(--ink)]">編集用リンク</h2>

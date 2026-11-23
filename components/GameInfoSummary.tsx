@@ -56,14 +56,22 @@ export function GameStatusBadge({ status }: { status: Game['status'] }) {
   )
 }
 
-// 試合情報の画面から打順の画面へ
-export function NextStepLink({ href }: { href: string }) {
+// 試合情報の画面から打席の入力・打順の画面へ
+export function NextStepLinks({ inputHref, lineupHref }: { inputHref: string; lineupHref: string }) {
   return (
-    <Link
-      href={href}
-      className="block text-center bg-[var(--green)] text-white font-bold py-3.5 rounded-xl text-base hover:opacity-90 transition-opacity"
-    >
-      打順と交代を入力する
-    </Link>
+    <div className="grid grid-cols-2 gap-3">
+      <Link
+        href={inputHref}
+        className="text-center bg-[var(--green)] text-white font-bold py-3.5 rounded-xl text-base hover:opacity-90 transition-opacity"
+      >
+        打席を入力する
+      </Link>
+      <Link
+        href={lineupHref}
+        className="text-center border border-[var(--green)]/40 text-[var(--green)] font-bold py-3.5 rounded-xl text-base hover:bg-[var(--green-bg)] transition-colors"
+      >
+        打順と交代
+      </Link>
+    </div>
   )
 }
