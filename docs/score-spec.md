@@ -1,6 +1,7 @@
 # 草野球マッチ スコア機能 仕様書（v1.2 / 2026-11-23）
 
 タスク4-0で決めた内容。
+v1.3: タスク4-1の実装で決めたデータ設計の変更（「5b. 仕様書から変えた点」）を追加。**「5. データ」「7. ゲストのスコア」と食い違うところは 5b を優先する。**
 v1.2: スコア機能のSEO対策（「8. SEO」）を追加。
 v1.1: **ログインなし（ゲスト）でも1試合ずつ記録できる**ように変更し、チーム登録へ導く（「7. ゲストのスコア」）。
 
@@ -101,6 +102,45 @@ v1.1: **ログインなし（ゲスト）でも1試合ずつ記録できる**よ
 - pitching_decisions: game_id, player_id, decision('W'|'L'|'S'|'H')
 - player_season_imports: team_id, player_id, year, 打撃・投手の合計
 - RLS: 書き込みはチームの管理者のみ。読み取りは管理者、または stats_public のチームなら誰でも（real_name は公開しない）
+- ※ 上の列名・参照先の一部は 5b で変えている。実装は 5b とマイグレーション `20261127000000_score_tables.sql` に従う
+
+## 5b. 仕様書から変えた点（タスク4-1、v1.3）
+以降のタスクはこの内容に従う。テーブル・関数の詳しい説明は CLAUDE.md の「スコア機能のテーブル」。
+
+### 選手は「出場の行」（game_lineups.id）で指す
+- 打席・走者・投手成績・勝敗は `players.id` ではなく `game_lineups.id` を参照する。同じ試合の出場行しか指せない（複合外部キー）
+  - plate_appearances: `batter_player_id` → **`batter_lineup_id`**、`our_pitcher_id` → **`pitcher_lineup_id`**
+  - runner_events: `runner_player_id` → **`runner_lineup_id`**
+  - pitching_summaries・pitching_decisions: `player_id` → **`lineup_id`**
+- 選手そのものは `game_lineups.player_id`（チームの試合）か `game_lineups.guest_name`（ゲストの試合）。成績を選手ごとに集計するときは `game_lineups.player_id` で束ねる
+- 理由: ゲストの試合には名簿の選手がいない。チームへの取り込みは `game_lineups.player_id` を付けるだけで済み、打席などの行を書き換えなくてよい
+
+### 編集用トークンは別テーブル
+- トークンのハッシュ（SHA-256）と作った端末（visitor_id）は `games` ではなく **`guest_game_secrets`** に置く。API からは誰も読み書きできない（関数だけが使う）
+- 理由: `games` を `select('*')` でそのまま読めるようにし、秘密の列を出し分ける必要をなくすため
+
+### ゲストの試合は関数でだけ読み書きする
+- ゲストの試合（`team_id` が null）は RLS のどのポリシーにも当たらず、テーブルを直接読めない。閲覧は **`get_score_game(id)`**、端末の一覧は **`list_guest_games(ids[])`** を使う
+- 書き込みは `create_guest_game`、`save_guest_game`、`delete_guest_game`、`import_guest_game`（いずれもトークンを確認する security definer）
+- 理由: テーブルで誰でも読めるようにすると、一覧の取得で他人の試合（選手の名前入り）を全部拾えてしまう。「id を知っている人だけ見られる」を関数で守る
+
+### 走者の動きの値を追加
+- `from_base`: `'B'`（打者）、`'1'`、`'2'`、`'3'`
+- `to_base`: `'1'`、`'2'`、`'3'`、`'H'`、`'OUT'`（`'1'` を追加）
+- 打者自身の進塁・得点・アウトも `from_base = 'B'` の行として記録する（本塁打なら B → H）。**得点はすべて `to_base = 'H'` の行で数える**
+- reason: 仕様書の9つ（打球・盗塁・盗塁死・暴投・捕逸・ボーク・失策・牽制死・走塁死）に **四死球・野選・妨害・その他** を追加（押し出しなど）
+- 打席の間の動き（`plate_appearance_id` が null）も回と攻守が分かるように、runner_events に **`inning`、`is_offense`** を追加
+
+### 追加した列
+- `games.guest_team_name`: ゲストの試合の自チーム名（チームの試合は teams.name を使う）
+- `game_lineups.guest_bats`、`game_lineups.guest_throws`: ゲストの選手の投打（任意）
+- `pitching_summaries.order_no`: 登板順（勝敗の候補を出すのに使う）
+
+### ゲストの試合の保存は「丸ごと入れ替え」
+- `save_guest_game` は試合の内容を丸ごと受け取り、子の行（出場・打席・走者・投手成績・勝敗）を全部消して入れ直す。端末に保存した状態を、つながったときにそのまま送る使い方に合わせた
+- 子の行の id はクライアントが決めて送る（打席→出場行などの参照を保つため）
+- `p_expected_updated_at` に前回の `updated_at` を渡すと、ほかの端末が先に保存していたとき `conflict = true` を返す。保存自体は後勝ちで行い、画面で警告を出す
+- チームの試合は今までどおり RLS でテーブルに直接書き込む（丸ごと入れ替えはゲストの試合だけ）
 
 ## 6. 段階と公開
 - **段階①（記録できる）**: DB、名簿、試合作成（ゲスト・チーム）、打順・交代、打席入力（攻撃・守備）、スコアページと確定、基本成績、入口とスコアタブ、ゲスト試合の取り込み。続けてSEO（紹介ページ・計算ツール・ガイド）
