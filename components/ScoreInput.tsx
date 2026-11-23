@@ -452,20 +452,21 @@ export default function ScoreInput({
               </div>
             </section>
           )}
-
-          {lastPa && (
-            <button
-              type="button"
-              onClick={() => {
-                setUndoError(null)
-                setUndoOpen(true)
-              }}
-              className="w-full text-xs text-[var(--ink-mute)] underline min-h-11"
-            >
-              直前の打席を取り消す
-            </button>
-          )}
         </div>
+      )}
+
+      {/* 守備の回・打者が未設定のときも取り消せるように、画面の状態によらず出す */}
+      {lastPa && (
+        <button
+          type="button"
+          onClick={() => {
+            setUndoError(null)
+            setUndoOpen(true)
+          }}
+          className="mt-4 w-full text-xs text-[var(--ink-mute)] underline min-h-11"
+        >
+          直前の打席を取り消す
+        </button>
       )}
 
       {!state.defensePending && batter && (
