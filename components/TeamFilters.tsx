@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { PREFECTURES } from '@/lib/prefectures'
 import { ACTIVITY_DAYS, type ActivityDay, type Level } from '@/lib/types'
+import CitySelect from './CitySelect'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
 
@@ -17,18 +18,22 @@ function chipClass(active: boolean) {
 
 interface Props {
   prefecture: string
+  city: string
   level: Level | ''
   days: ActivityDay[]
 }
 
-export default function TeamFilters({ prefecture, level, days }: Props) {
+export default function TeamFilters({ prefecture, city, level, days }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
   function apply(next: Partial<Props>) {
-    const merged = { prefecture, level, days, ...next }
+    const merged = { prefecture, city, level, days, ...next }
+    // 市区町村は都道府県を変えたらリセットする
+    if (next.prefecture !== undefined && next.prefecture !== prefecture) merged.city = ''
     const params = new URLSearchParams()
     if (merged.prefecture) params.set('prefecture', merged.prefecture)
+    if (merged.prefecture && merged.city) params.set('city', merged.city)
     if (merged.level) params.set('level', merged.level)
     if (merged.days.length) params.set('days', merged.days.join(','))
     const qs = params.toString()
@@ -63,6 +68,19 @@ export default function TeamFilters({ prefecture, level, days }: Props) {
           ))}
         </select>
       </div>
+
+      {prefecture && (
+        <div>
+          <p className="text-xs text-[var(--ink-mute)] mb-1">市区町村</p>
+          <CitySelect
+            prefecture={prefecture}
+            value={city}
+            onChange={(value) => apply({ city: value })}
+            className="w-full border border-[var(--line)] rounded-lg px-3 py-2 text-sm bg-[var(--surface)] text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--green)]/40"
+            placeholder="市区町村すべて"
+          />
+        </div>
+      )}
 
       <div>
         <p className="text-xs text-[var(--ink-mute)] mb-1">レベル</p>

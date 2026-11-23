@@ -85,7 +85,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 
 他チームの情報を読むときは `teams` ではなく `team_profiles` を使う。`teams` に公開する列を足したら、`team_profiles` にも末尾に足す（`create or replace view` は列を末尾にしか追加できない）。
 
-`match_posts` と `teams` の `city`（市区町村名）と `travel_range`（`市内のみ`、`30分圏内`、`1時間圏内`、`県内どこでも`）は任意項目で、既存データは null。`travel_range` は check 制約で値を制限している。`TeamInput` からは外してあるので、チームの保存では送られない。
+`match_posts` と `teams` の `city`（市区町村名）と `travel_range`（`市内のみ`、`30分圏内`、`1時間圏内`、`県内どこでも`）は任意項目で、既存データは null。`travel_range` は check 制約で値を制限している。チームの city は新規登録では必須、既存チームの編集では任意。
 
 `match_posts` の連絡先（`contact_email`、`contact_phone`、`contact_other`）:
 

@@ -8,15 +8,18 @@ import {
   ACTIVITY_DAYS,
   ACTIVITY_TIMES,
   AGE_RANGES,
+  TRAVEL_RANGES,
   type ActivityDay,
   type ActivityTime,
   type AgeRange,
   type Level,
   type Team,
   type TeamInput,
+  type TravelRange,
 } from '@/lib/types'
 import { setSelectedTeamCookie } from '@/lib/selectedTeam'
 import { todayJST } from '@/lib/dates'
+import CitySelect from './CitySelect'
 import TeamAvatar from './TeamAvatar'
 
 const LEVELS: Level[] = ['A+', 'A', 'B', 'C']
@@ -99,6 +102,8 @@ export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
   const [level, setLevel] = useState<Level | ''>(initialTeam?.level ?? '')
   const [description, setDescription] = useState(initialTeam?.description ?? '')
   const [prefecture, setPrefecture] = useState(initialTeam?.prefecture ?? '')
+  const [city, setCity] = useState(initialTeam?.city ?? '')
+  const [travelRange, setTravelRange] = useState<TravelRange | ''>(initialTeam?.travel_range ?? '')
   const [areaDetail, setAreaDetail] = useState(initialTeam?.area_detail ?? '')
   const [activityDays, setActivityDays] = useState<ActivityDay[]>(initialTeam?.activity_days ?? [])
   const [activityTimes, setActivityTimes] = useState<ActivityTime[]>(initialTeam?.activity_times ?? [])
@@ -152,12 +157,19 @@ export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
     setLogoUrl(null)
   }
 
+  function changePrefecture(value: string) {
+    if (value !== prefecture) setCity('')
+    setPrefecture(value)
+  }
+
   function validate() {
     const e: Record<string, string> = {}
     if (!name.trim()) e.name = 'チーム名を入力してください'
     else if (name.trim().length > 50) e.name = 'チーム名は50文字以内にしてください'
     if (!level) e.level = 'レベルを選択してください'
     if (!prefecture) e.prefecture = '活動している都道府県を選択してください'
+    // 既存チームの編集では市区町村は任意（未設定のまま保存できる）
+    else if (!isEdit && !city) e.city = '活動している市区町村を選択してください'
     if (description.length > 500) e.description = '紹介文は500文字以内にしてください'
 
     const members = parseOptionalInt(memberCount)
@@ -193,6 +205,8 @@ export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
       logo_url: logoUrl,
       description: description.trim() || null,
       prefecture,
+      city: city || null,
+      travel_range: travelRange || null,
       area_detail: areaDetail.trim() || null,
       level: level as Level,
       activity_days: ACTIVITY_DAYS.filter((d) => activityDays.includes(d)),
@@ -270,7 +284,7 @@ export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
         <div>
           <h1 className="text-xl font-black text-[var(--ink)]">{isEdit ? 'チーム情報を編集' : 'チームを登録する'}</h1>
           <p className="text-sm text-[var(--ink-mute)] mt-1">
-            {isEdit ? '変更した内容はチームページにすぐ反映されます。' : '必須は3項目だけ。ほかは後からいつでも追加できます。'}
+            {isEdit ? '変更した内容はチームページにすぐ反映されます。' : '必須は4項目だけ。ほかは後からいつでも追加できます。'}
           </p>
         </div>
 
@@ -361,14 +375,14 @@ export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
             <FormLabel required>都道府県</FormLabel>
             <div className="flex flex-wrap gap-2 mb-2">
               {POPULAR_PREFECTURES.map((p) => (
-                <button key={p} type="button" onClick={() => setPrefecture(p)} className={chipClass(prefecture === p)}>
+                <button key={p} type="button" onClick={() => changePrefecture(p)} className={chipClass(prefecture === p)}>
                   {p}
                 </button>
               ))}
             </div>
             <select
               value={prefecture}
-              onChange={(e) => setPrefecture(e.target.value)}
+              onChange={(e) => changePrefecture(e.target.value)}
               className={inputClass(!!errors.prefecture)}
             >
               <option value="">都道府県を選択</option>
@@ -380,13 +394,37 @@ export default function TeamForm({ initialTeam, cancelHref, children }: Props) {
             </select>
           </div>
 
+          {prefecture && (
+            <div>
+              <FormLabel required={!isEdit}>市区町村{isEdit ? '（任意）' : ''}</FormLabel>
+              <CitySelect prefecture={prefecture} value={city} onChange={setCity} className={inputClass(!!errors.city)} />
+            </div>
+          )}
+
           <div>
-            <FormLabel>市区町村・最寄り駅など（任意）</FormLabel>
+            <FormLabel>移動できる範囲（任意）</FormLabel>
+            <div className="flex flex-wrap gap-2">
+              {TRAVEL_RANGES.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={travelRange === r}
+                  onClick={() => setTravelRange(travelRange === r ? '' : r)}
+                  className={chipClass(travelRange === r)}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FormLabel>エリア詳細・最寄り駅など（任意）</FormLabel>
             <input
               type="text"
               value={areaDetail}
               onChange={(e) => setAreaDetail(e.target.value)}
-              placeholder="例：船橋市・津田沼駅周辺"
+              placeholder="例：津田沼駅周辺"
               className={inputClass()}
             />
           </div>

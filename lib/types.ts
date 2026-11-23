@@ -103,8 +103,7 @@ export interface Team extends TeamProfile {
   contact_public: boolean
 }
 
-// city / travel_range はまだフォームで扱わないので、保存時に送らない（既存の値を消さない）
-export type TeamInput = Omit<Team, 'id' | 'created_by' | 'created_at' | 'updated_at' | 'city' | 'travel_range'>
+export type TeamInput = Omit<Team, 'id' | 'created_by' | 'created_at' | 'updated_at'>
 
 export type TeamSummary = Pick<Team, 'id' | 'name' | 'logo_url'>
 

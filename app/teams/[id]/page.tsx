@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { supabase } from '@/lib/supabase'
-import { openPostsOrFilter } from '@/lib/postRules'
+import { openPostsOrFilter, postPlaceLabel } from '@/lib/postRules'
 import { pageMetadata, truncateText } from '@/lib/seo'
 import { POST_COLUMNS } from '@/lib/postQueries'
 import type { MatchPost, TeamProfile } from '@/lib/types'
@@ -45,7 +45,8 @@ export default async function TeamPage({ params }: Props) {
   const team = await getTeam(id)
   if (!team) notFound()
 
-  const area = [team.prefecture, team.area_detail].filter(Boolean).join(' ')
+  // 募集の場所と同じ「都道府県 市区町村 ・ 移動範囲 エリア詳細」（市区町村が未設定なら今までどおり）
+  const area = [postPlaceLabel(team), team.area_detail].filter(Boolean).join(' ')
   const schedule = [team.activity_days.join('・'), team.activity_times.join('・')].filter(Boolean).join(' ／ ')
   const members = [team.member_count ? `${team.member_count}人` : null, team.age_range].filter(Boolean).join(' ／ ')
   const hasContact = team.contact_email || team.contact_phone || team.contact_other
