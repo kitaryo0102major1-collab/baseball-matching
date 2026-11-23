@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { DEFAULT_INNINGS } from '@/lib/games'
 import { removeGuestGame } from '@/lib/guestGames'
 import { GUEST_GAME_MESSAGES, saveScoreGame, useGuestGame } from '@/lib/useGuestGame'
+import { readDraft, rebaseDraft } from '@/lib/gameRecords'
 import type { GameInfoInput } from '@/lib/types'
 import ConfirmDialog from './ConfirmDialog'
 import GameInfoForm from './GameInfoForm'
@@ -24,8 +25,15 @@ export default function GuestGameEditor({ gameId }: { gameId: string }) {
 
   async function saveInfo(values: GameInfoInput): Promise<string | null> {
     if (state.status !== 'ready') return null
-    const result = await saveScoreGame(gameId, state.token, state.data, { game: values })
+    // 打席入力で端末に残っている記録があれば、それを上書きしないように一緒に送る
+    const draft = readDraft(gameId)
+    const local = draft && draft.pending > 0 ? draft.records : null
+    const result = await saveScoreGame(gameId, state.token, state.data, {
+      game: local ? { ...values, opponent_lineup: local.opponentLineup } : values,
+      ...(local ? { lineups: local.lineups.map((r) => ({ ...r })), plate_appearances: local.pas, runner_events: local.events } : {}),
+    })
     if (result.error) return '保存できませんでした。通信状態を確認して、もう一度お試しください。'
+    if (result.updatedAt) rebaseDraft(gameId, result.updatedAt)
     await refresh()
     setEditing(false)
     setNotice(result.conflict ? 'ほかの端末でも保存されていました。今保存した内容で上書きしています。' : '試合情報を保存しました。')

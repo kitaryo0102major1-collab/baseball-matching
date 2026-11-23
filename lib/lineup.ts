@@ -170,3 +170,23 @@ export function hideRosterTip() {
     // 閉じた状態はこの画面の間だけ保つ
   }
 }
+
+// 打席・走者の記録から参照されている出場の行は消せない（消すと送信が失敗し続けるため、保存前に止める）
+export function referencedLineupError(
+  records: {
+    lineups: Pick<LineupRow, 'id'>[]
+    pas: { batter_lineup_id: string | null; pitcher_lineup_id: string | null }[]
+    events: { runner_lineup_id: string | null }[]
+  },
+  nextRows: Pick<LineupRow, 'id'>[]
+): string | null {
+  const kept = new Set(nextRows.map((r) => r.id))
+  const used = new Set<string>()
+  for (const p of records.pas) {
+    if (p.batter_lineup_id) used.add(p.batter_lineup_id)
+    if (p.pitcher_lineup_id) used.add(p.pitcher_lineup_id)
+  }
+  for (const e of records.events) if (e.runner_lineup_id) used.add(e.runner_lineup_id)
+  const removedUsed = records.lineups.some((r) => !kept.has(r.id) && used.has(r.id))
+  return removedUsed ? '打席の記録がある出場は取り消せません。先に打席の入力画面で、その打席を取り消してください。' : null
+}

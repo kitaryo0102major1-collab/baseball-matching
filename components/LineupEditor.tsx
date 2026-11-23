@@ -40,6 +40,8 @@ interface Props {
   nextSeq: number
   // 打席の入力画面
   inputHref: string
+  // 保存状態の表示（上部に出す）
+  statusSlot?: React.ReactNode
   // 失敗したらエラーメッセージを返す
   onSave: (rows: LineupRow[], opponentLineup: string[]) => Promise<string | null>
 }
@@ -69,7 +71,7 @@ function slotLabel(slot: number | null) {
   return slot === null ? '投手' : `${slot}番`
 }
 
-export default function LineupEditor({ game, initialRows, people, nextSeq, inputHref, onSave }: Props) {
+export default function LineupEditor({ game, initialRows, people, nextSeq, inputHref, onSave, statusSlot }: Props) {
   const [rows, setRows] = useState<LineupRow[]>(initialRows)
   const [players, setPlayers] = useState<Player[]>(people.kind === 'team' ? people.players : [])
   const [opponentLineup, setOpponentLineup] = useState<string[]>(() => {
@@ -197,6 +199,7 @@ export default function LineupEditor({ game, initialRows, people, nextSeq, input
 
   return (
     <div className="space-y-5 pb-24">
+      {statusSlot && <div className="text-right -mb-3">{statusSlot}</div>}
       {showTip && (
         <div className="flex items-start gap-3 bg-[var(--green-bg)] border border-[var(--green)]/20 rounded-xl px-4 py-3">
           <p className="flex-1 text-xs text-[var(--ink-sub)] leading-relaxed">

@@ -1,11 +1,12 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { useGameRecords } from '@/lib/gameRecords'
 import type { LineupRow } from '@/lib/lineup'
-import type { LastOperation } from '@/lib/scoring/between'
+import { sendTeamRecords } from '@/lib/recordSenders'
 import type { PlateAppearance, RunnerEvent } from '@/lib/scoring/types'
 import type { Game, Player } from '@/lib/types'
 import ScoreInput from './ScoreInput'
+import SyncStatus, { ConflictNotice } from './SyncStatus'
 
 interface Props {
   game: Game
@@ -16,12 +17,19 @@ interface Props {
   events: RunnerEvent[]
 }
 
-const SAVE_ERROR = '記録できませんでした。通信状態を確認して、もう一度お試しください。'
-
-// チームの試合の打席入力。保存は RLS でテーブルに直接
+// チームの試合の打席入力。記録は端末に保存し、裏でまとめて送る（lib/gameRecords.ts）
 export default function TeamScoreInput({ game, teamName, rows, players, pas, events }: Props) {
+  const store = useGameRecords({
+    gameId: game.id,
+    server: { lineups: rows, pas, events, opponentLineup: game.opponent_lineup ?? [] },
+    serverUpdatedAt: game.updated_at,
+    send: (records, expected) => sendTeamRecords(game.id, records, expected),
+  })
+
+  if (!store.ready) return <div className="text-center py-16 text-sm text-[var(--ink-mute)]">読み込み中...</div>
+
   const playerById = new Map(players.map((p) => [p.id, p]))
-  const rowById = new Map(rows.map((r) => [r.id, r]))
+  const rowById = new Map(store.records.lineups.map((r) => [r.id, r]))
 
   function nameOf(lineupId: string | null) {
     const row = lineupId ? rowById.get(lineupId) : null
@@ -29,45 +37,33 @@ export default function TeamScoreInput({ game, teamName, rows, players, pas, eve
     return playerById.get(row.player_id)?.display_name ?? '（名簿から削除された選手）'
   }
 
-  // pa が null なら打席の間のプレー（走者の動きだけ）
-  async function record(pa: PlateAppearance | null, newEvents: RunnerEvent[]) {
-    const supabase = createClient()
-    if (pa) {
-      const { error } = await supabase.from('plate_appearances').insert({ ...pa, game_id: game.id })
-      if (error) return SAVE_ERROR
-    }
-    const { error: eventsError } = await supabase.from('runner_events').insert(newEvents.map((e) => ({ ...e, game_id: game.id })))
-    if (eventsError) {
-      // 走者の動きが保存できなければ、打席も取り消して記録を半端にしない
-      if (pa) await supabase.from('plate_appearances').delete().eq('id', pa.id)
-      return SAVE_ERROR
-    }
-    return null
-  }
-
-  async function undo(op: LastOperation) {
-    const supabase = createClient()
-    // 打席を消すと、その走者の動きも一緒に消える（外部キーの on delete cascade）
-    const { error } =
-      op.kind === 'pa'
-        ? await supabase.from('plate_appearances').delete().eq('id', op.pa.id)
-        : await supabase.from('runner_events').delete().in('id', op.events.map((e) => e.id))
-    return error ? '取り消せませんでした。もう一度お試しください。' : null
-  }
-
   return (
-    <ScoreInput
-      game={game}
-      ourName={teamName}
-      opponentName={game.opponent_name}
-      rows={rows}
-      initialPas={pas}
-      initialEvents={events}
-      nameOf={nameOf}
-      batsOf={(row) => (row.player_id ? playerById.get(row.player_id)?.bats ?? null : null)}
-      lineupHref={`/mypage/games/${game.id}/lineup`}
-      onRecord={record}
-      onUndo={undo}
-    />
+    <>
+      {store.conflict && (
+        <div className="mb-3">
+          <ConflictNotice onClose={store.dismissConflict} />
+        </div>
+      )}
+      <ScoreInput
+        game={game}
+        ourName={teamName}
+        opponentName={game.opponent_name}
+        rows={store.records.lineups}
+        initialPas={store.records.pas}
+        initialEvents={store.records.events}
+        nameOf={nameOf}
+        batsOf={(row) => (row.player_id ? playerById.get(row.player_id)?.bats ?? null : null)}
+        lineupHref={`/mypage/games/${game.id}/lineup`}
+        statusSlot={<SyncStatus state={store.syncState} pending={store.pending} />}
+        onRecord={async (_pa, _events, allPas, allEvents) => {
+          store.commit({ pas: allPas, events: allEvents })
+          return null
+        }}
+        onUndo={async (_op, allPas, allEvents) => {
+          store.commit({ pas: allPas, events: allEvents })
+          return null
+        }}
+      />
+    </>
   )
 }

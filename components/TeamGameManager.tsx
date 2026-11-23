@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { rebaseDraft } from '@/lib/gameRecords'
 import type { Game, GameInfoInput } from '@/lib/types'
 import ConfirmDialog from './ConfirmDialog'
 import GameInfoForm from './GameInfoForm'
@@ -33,6 +34,8 @@ export default function TeamGameManager({ game: initialGame, teamName, defaultIn
       .single()
     if (error || !data) return '保存できませんでした。通信状態を確認して、もう一度お試しください。'
     setGame(data as Game)
+    // 打席入力の端末の記録が、この保存をほかの端末の保存と取り違えないように
+    rebaseDraft(game.id, (data as Game).updated_at)
     setEditing(false)
     setNotice('試合情報を保存しました。')
     router.refresh()

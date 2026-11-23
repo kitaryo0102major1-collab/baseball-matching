@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageMetadata } from '@/lib/seo'
 import GuestScoreInput from '@/components/GuestScoreInput'
+import OfflineSupport from '@/components/OfflineSupport'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -29,6 +30,7 @@ export default async function GuestInputPage({ params }: Props) {
       </div>
       <h1 className="sr-only">打席の入力</h1>
       <GuestScoreInput gameId={id} />
+      <OfflineSupport />
     </div>
   )
 }

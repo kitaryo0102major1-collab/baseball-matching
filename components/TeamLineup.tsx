@@ -1,25 +1,33 @@
 'use client'
 
-import { useRef } from 'react'
+import { useGameRecords } from '@/lib/gameRecords'
+import { referencedLineupError, type LineupRow } from '@/lib/lineup'
+import { sendTeamRecords } from '@/lib/recordSenders'
+import type { PlateAppearance, RunnerEvent } from '@/lib/scoring/types'
 import { createClient } from '@/lib/supabase/client'
-import type { LineupRow } from '@/lib/lineup'
 import type { Game, Player } from '@/lib/types'
 import LineupEditor from './LineupEditor'
+import SyncStatus, { ConflictNotice } from './SyncStatus'
 
 interface Props {
   game: Game
   teamId: string
   initialRows: LineupRow[]
   players: Player[]
-  nextSeq: number
+  pas: PlateAppearance[]
+  events: RunnerEvent[]
 }
 
-// チームの試合の打順と交代。保存は RLS でテーブルに直接（消した行を削除し、残りを upsert）
-export default function TeamLineup({ game, teamId, initialRows, players, nextSeq }: Props) {
-  // DB にある行の id（保存のたびに更新し、消した行だけを削除する）
-  const savedIds = useRef(new Set(initialRows.map((r) => r.id)))
-  const savedOpponent = useRef(JSON.stringify(game.opponent_lineup ?? []))
+// チームの試合の打順と交代。記録は打席入力と同じく端末に保存し、裏でまとめて送る
+export default function TeamLineup({ game, teamId, initialRows, players, pas, events }: Props) {
+  const store = useGameRecords({
+    gameId: game.id,
+    server: { lineups: initialRows, pas, events, opponentLineup: game.opponent_lineup ?? [] },
+    serverUpdatedAt: game.updated_at,
+    send: (records, expected) => sendTeamRecords(game.id, records, expected),
+  })
 
+  // 名簿への助っ人の追加は、記録とは別にすぐ保存する（つながっているときだけ）
   async function addHelper(displayName: string): Promise<Player | null> {
     const { data, error } = await createClient()
       .from('players')
@@ -29,40 +37,27 @@ export default function TeamLineup({ game, teamId, initialRows, players, nextSeq
     return error || !data ? null : (data as Player)
   }
 
-  async function save(rows: LineupRow[], opponentLineup: string[]) {
-    const supabase = createClient()
-    const removed = [...savedIds.current].filter((id) => !rows.some((r) => r.id === id))
-    if (removed.length > 0) {
-      const { error } = await supabase.from('game_lineups').delete().in('id', removed)
-      if (error) {
-        return error.code === '23503'
-          ? '打席の記録がある出場は取り消せません。'
-          : '保存できませんでした。通信状態を確認して、もう一度お試しください。'
-      }
-    }
-    if (rows.length > 0) {
-      const { error } = await supabase.from('game_lineups').upsert(
-        rows.map((r) => ({ ...r, game_id: game.id, guest_name: null, guest_bats: null, guest_throws: null }))
-      )
-      if (error) return '保存できませんでした。通信状態を確認して、もう一度お試しください。'
-    }
-    if (JSON.stringify(opponentLineup) !== savedOpponent.current) {
-      const { error } = await supabase.from('games').update({ opponent_lineup: opponentLineup }).eq('id', game.id)
-      if (error) return '相手の打順を保存できませんでした。もう一度お試しください。'
-      savedOpponent.current = JSON.stringify(opponentLineup)
-    }
-    savedIds.current = new Set(rows.map((r) => r.id))
-    return null
-  }
+  if (!store.ready) return <div className="text-center py-16 text-sm text-[var(--ink-mute)]">読み込み中...</div>
+
+  const nextSeq = store.records.pas.reduce((m, p) => Math.max(m, p.seq), 0) + 1
 
   return (
-    <LineupEditor
-      game={game}
-      initialRows={initialRows}
-      people={{ kind: 'team', players, addHelper }}
-      nextSeq={nextSeq}
-      inputHref={`/mypage/games/${game.id}/input`}
-      onSave={save}
-    />
+    <>
+      {store.conflict && <ConflictNotice onClose={store.dismissConflict} />}
+      <LineupEditor
+        game={{ ...game, opponent_lineup: store.records.opponentLineup }}
+        initialRows={store.records.lineups}
+        people={{ kind: 'team', players, addHelper }}
+        nextSeq={nextSeq}
+        inputHref={`/mypage/games/${game.id}/input`}
+        statusSlot={<SyncStatus state={store.syncState} pending={store.pending} />}
+        onSave={async (rows, opponentLineup) => {
+          const error = referencedLineupError(store.records, rows)
+          if (error) return error
+          store.commit({ lineups: rows, opponentLineup })
+          return null
+        }}
+      />
+    </>
   )
 }

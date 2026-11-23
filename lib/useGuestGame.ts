@@ -60,7 +60,8 @@ export async function saveScoreGame(
     p_expected_updated_at: data.game.updated_at,
   })
   if (error) return { error }
-  return { error: null, conflict: !!(result as { conflict: boolean }[] | null)?.[0]?.conflict }
+  const row = (result as { conflict: boolean; updated_at: string }[] | null)?.[0]
+  return { error: null, conflict: !!row?.conflict, updatedAt: row?.updated_at ?? null }
 }
 
 // ゲストの試合を、編集用トークンを確かめてから読む。

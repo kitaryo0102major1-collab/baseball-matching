@@ -22,7 +22,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 | `/mypage` | 自チームの募集管理 | `MyTeamPosts`、`MemberRenewCard` |
 | `/mypage/team`、`/mypage/team/new`、`/mypage/team/members` | チームの編集・作成・管理者と招待 | `TeamForm`、`MembersManager` |
 | `/mypage/games`、`/mypage/games/new`、`/mypage/games/[id]` | チームの試合。年度ごとの一覧（`?year=`、年度の開始月はチーム設定）・作成・試合情報の編集と削除。打順・入力はまだない | `TeamGameCreate`、`TeamGameManager`、`GameInfoForm` |
-| `/mypage/games/[id]/input`、`/scores/[id]/input` | 打席の入力（今は自チームの攻撃だけ。打席の間のプレー（走者のプレー）、直前の操作の取り消し、3アウトでの攻守交代と「◯回表 終了」の表示、打順・交代の画面への移動。守備の回は「準備中」と出して次の攻撃へ進める。オフライン保存はまだ） | `ScoreInput`（共通）、`TeamScoreInput`、`GuestScoreInput` |
+| `/mypage/games/[id]/input`、`/scores/[id]/input` | 打席の入力（今は自チームの攻撃だけ。打席の間のプレー（走者のプレー）、直前の操作の取り消し、3アウトでの攻守交代と「◯回表 終了」の表示、打順・交代の画面への移動。守備の回は「準備中」と出して次の攻撃へ進める。電波がなくても入力を続けられる（下の「試合の記録の端末保存と送信」）） | `ScoreInput`（共通）、`TeamScoreInput`、`GuestScoreInput` |
 | `/mypage/games/[id]/lineup`、`/scores/[id]/lineup` | 打順と交代（スタメン・交代の記録と取り消し・相手の打順）。打席入力はまだない | `LineupEditor`（共通）、`TeamLineup`、`GuestLineup` |
 | `/scores` | ゲストの「この端末で記録した試合」（後のタスクで紹介ページにし、一覧は部品のまま下部に置く） | `GuestGamesList` |
 | `/scores/new`、`/scores/[id]/edit` | ゲストの試合の作成・試合情報の編集と削除。編集用リンクは `/scores/[id]/edit#token` | `GuestGameCreate`、`GuestGameEditor`、`GuestEditLink` |
@@ -62,6 +62,8 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
   - `between.ts`: 打席の間のプレー（盗塁・盗塁死・暴投・捕逸・ボーク・牽制死・走塁死・失策）。`defaultTargets()` 対象の走者の初期値、`predictBetween()` 動きの予想（ボークは全員1つ進む、アウト系はアウト、ほかは1つ進む）、`buildBetweenRecord()`。`lastOperation()` / `withoutOperation()` 直前の操作（打席か打席の間のプレー）の取り消し
   - `record.ts`: `buildOffenseRecord()` 入力した1打席を plate_appearances 1行と runner_events にする（先の塁の走者から順に seq を振る）
 - `lineup.ts`: 打順と交代の扱い（`LineupRow`、今その打順にいる人 `currentRow()`、守備位置の重複、再出場できる人、交代の種類）。ゲストが前に使った名前（localStorage `guest_player_names`）と、名簿の案内を閉じた印（`hide_roster_tip`）
+- `gameRecords.ts`: 試合の記録（打順・交代・打席・走者の動き・相手の打順）を端末（localStorage `score_draft:{gameId}`）に保存し、裏でまとめて送る `useGameRecords()`。打席入力と打順の画面が使う。`rebaseDraft()` は試合情報の保存のあとに基準の updated_at を進める
+- `recordSenders.ts`: 記録をまとめて送る。チームは `sendTeamRecords()`（端末にない行を delete、ある行を upsert、最後に games を更新して updated_at を進める）、ゲストは `sendGuestRecords()`（save_guest_game）
 - `useGuestGame.ts`: ゲストの試合をトークンを確かめてから読むフック、`saveScoreGame()`（変えた項目だけ渡し、ほかの子の行は読んだものを送り返す）
 - `guestGames.ts`: ゲストの試合の編集用トークンを試合IDとセットで localStorage（`guest_games`）に保存する。読み書きは try/catch で、使えないときは空として扱う。`guestEditUrl()` は編集用リンク（トークンは # の後ろでサーバーに送らない）
 - `players.ts`: 選手名簿の定数と表示（守備位置 `FIELD_POSITIONS`、投打の選択肢、`handednessLabel()`、背番号順の `comparePlayers()`）
@@ -185,8 +187,15 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - 試合の画面: 試合情報のフォーム `GameInfoForm` はゲスト・チーム共通（自チーム名はゲストだけ）。終わり方（`end_reason`）は確定時に入れるのでフォームにない。打順人数は「9人／全員打ち（10〜30人）」。予定イニングの初期値はチームなら `teams.innings_per_game`、ゲストは7
 - ゲストの試合の画面は匿名クライアント（`@/lib/supabase`）で関数を呼ぶ。試合情報だけを保存するときも、`get_score_game` で読んだ子の行を `save_guest_game` にそのまま送り返す（送らないと消える）
 - 打順と交代（`game_lineups`）: 先発は `entry_type = 先発`・`entered_at` null。交代は同じ `batting_slot` に行を足し、`entered_at`（何打席目から）→ `created_at` の順に並べて最後の行が今いる人。臨時代走・臨時代打は今いる人に数えない。投手交代は `entry_type = 守備`・`position = 1`。DH のときの投手は `batting_slot` null の行。再出場は先発で出て今は交代している人だけ
-- 打席入力の保存: チームは plate_appearances を insert してから runner_events を insert（走者の動きが失敗したら打席も消す）。取り消しは打席の delete（走者の動きは cascade で消える）。ゲストは `saveScoreGame()` で打席・走者の動きを丸ごと送る
-- 打席の間のプレーは runner_events だけ（`plate_appearance_id` null）。1つのプレーの行は同じ `seq` にする。reason はプレーの種類と同じ名前（盗塁・暴投など）で、打点はつかない。チームの取り消しは、打席なら打席の delete、打席の間のプレーならその行の delete
+- 試合の記録の端末保存と送信（`useGameRecords`）:
+  - 入力・取り消し・打順の保存のたびに、まず端末に保存して画面をすぐ進め、サーバーへは裏で送る（入力は通信を待たない）。送っていない変更の数（未送信◯件）も端末に残す
+  - 画面を開いたとき、送っていない端末の記録があれば、サーバーの記録より優先して表示して送り直す。送り直しは online イベント・画面に戻ったとき・15秒ごと
+  - 送るときは記録を丸ごと送る。送る前の games.updated_at が前回送ったときと違えば、ほかの端末も入力している（conflict）。後から送った方が勝ち、画面に「ほかの端末でも入力されています。最新の内容に置き換えました」と出す
+  - 打席・走者の記録が参照している出場の行は、打順の画面から消せない（`referencedLineupError()`。消すと送信が失敗し続けるため）
+  - 試合情報の画面で保存したら `rebaseDraft()`（自分の保存を conflict と取り違えないため）。ゲストは送っていない端末の記録も一緒に送る
+  - 電波がなくても画面を開き直せるように、打席入力・打順の画面（とその JS）は Service Worker（`public/score-sw.js`、登録は `OfflineSupport`）がキャッシュする。ほかのページには触れない。ゲストの画面は、サーバーに届かないときは端末の記録で開く（`GuestGameGate`）
+  - 名簿への助っ人の追加は、つながっているときだけ（記録とは別にすぐ保存する）
+- 打席の間のプレーは runner_events だけ（`plate_appearance_id` null）。1つのプレーの行は同じ `seq` にする。reason はプレーの種類と同じ名前（盗塁・暴投など）で、打点はつかない
 - runner_events の reason: 打者の動きは安打・凡打が「打球」、四死球が「四死球」、三振・振り逃げが「その他」、失策出塁は「失策」、野選は「野選」、妨害は「妨害」
 - 打順の保存: チームは消した行を delete してから残りを upsert、ゲストは `save_guest_game` で丸ごと入れ替え（`created_at` は送った値が残る）
 - `games.opponent_lineup`（text[]）: 相手の打順の名前。打順番号 = 位置 + 1、名前は任意で末尾の空欄は保存しない。守備を「相手も1打席ずつ」で記録する試合だけで使う

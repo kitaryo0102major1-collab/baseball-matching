@@ -30,6 +30,8 @@ interface Props {
   nameOf: (lineupId: string | null) => string
   batsOf: (row: LineupRow) => Bats | null
   lineupHref: string
+  // 保存状態の表示（上部のスコアの下に出す）
+  statusSlot?: React.ReactNode
   // 失敗したらエラーメッセージを返す。pa は打席の間のプレーでは null。all〜 は保存後の全体（ゲストは丸ごと送る）
   onRecord: (pa: PlateAppearance | null, events: RunnerEvent[], allPas: PlateAppearance[], allEvents: RunnerEvent[]) => Promise<string | null>
   // 直前の操作（打席、または打席の間のプレー）の取り消し
@@ -118,6 +120,7 @@ export default function ScoreInput({
   lineupHref,
   onRecord,
   onUndo,
+  statusSlot,
 }: Props) {
   const [pas, setPas] = useState(initialPas)
   const [events, setEvents] = useState(initialEvents)
@@ -314,6 +317,7 @@ export default function ScoreInput({
             </p>
           </div>
         </div>
+        {statusSlot && <div className="mt-1 text-right">{statusSlot}</div>}
       </div>
 
       {inningEnd && (

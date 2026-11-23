@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { pageMetadata } from '@/lib/seo'
 import GuestLineup from '@/components/GuestLineup'
+import OfflineSupport from '@/components/OfflineSupport'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -26,6 +27,7 @@ export default async function GuestLineupPage({ params }: Props) {
         <h1 className="text-xl font-black text-[var(--ink)] mt-3">打順と交代</h1>
       </div>
       <GuestLineup gameId={id} />
+      <OfflineSupport />
     </div>
   )
 }

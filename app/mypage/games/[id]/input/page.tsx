@@ -6,6 +6,7 @@ import { toLineupRow } from '@/lib/lineup'
 import type { PlateAppearance, RunnerEvent } from '@/lib/scoring/types'
 import type { Game, Player } from '@/lib/types'
 import TeamScoreInput from '@/components/TeamScoreInput'
+import OfflineSupport from '@/components/OfflineSupport'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -56,6 +57,7 @@ export default async function TeamInputPage({ params }: Props) {
         pas={(pas ?? []) as PlateAppearance[]}
         events={(events ?? []) as RunnerEvent[]}
       />
+      <OfflineSupport />
     </div>
   )
 }
