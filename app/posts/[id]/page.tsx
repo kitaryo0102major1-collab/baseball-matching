@@ -22,6 +22,7 @@ import DetailContactCta from '@/components/DetailContactCta'
 import ChatArea from '@/components/ChatArea'
 import RecordPostView from '@/components/RecordPostView'
 import LikeButton from '@/components/LikeButton'
+import { OwnerPostStats } from '@/components/PostStats'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -187,6 +188,8 @@ export default async function PostDetailPage({ params }: Props) {
                 <RegisteredTeamBadge size="xs" />
               </Link>
             )}
+            {/* 閲覧数・気になる数（そのチームの管理者か、ゲスト募集を投稿した端末にだけ出る） */}
+            <OwnerPostStats postId={post.id} isManager={isOwnTeam} isGuestPost={!post.team_id} />
           </div>
 
           {(memberUnlisted || memberClosed) && (

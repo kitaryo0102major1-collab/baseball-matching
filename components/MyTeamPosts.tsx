@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { fetchViewCounts } from '@/lib/postStats'
 import type { MatchPost } from '@/lib/types'
 import MemberRenewCard from './MemberRenewCard'
 import PostCard from './PostCard'
 import PostMethodButton from './PostMethodButton'
+import { PostStats, VIEW_COUNT_NOTE } from './PostStats'
 
 export type MyTeamPost = MatchPost & {
   posterName: string
@@ -53,6 +55,20 @@ export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, de
     if (!previous || new Date(renderedAt) > new Date(previous)) writeLastSeen(teamId, renderedAt)
   }, [teamId, renderedAt])
 
+  // 一覧に出す募集の閲覧数をまとめて1回で取得する（気になる数は各カードのボタンと同じ取得を使う）
+  const listedIds = [...open, ...decided, ...past].map((p) => p.id).join(',')
+  const [viewCounts, setViewCounts] = useState<Map<string, number | null> | null>(null)
+  useEffect(() => {
+    if (!listedIds) return
+    let cancelled = false
+    fetchViewCounts(listedIds.split(',')).then((counts) => {
+      if (!cancelled) setViewCounts(counts)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [listedIds])
+
   if (needsRenewal.length + open.length + decided.length + past.length === 0) {
     return (
       <section className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 space-y-4 text-center">
@@ -74,6 +90,7 @@ export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, de
       {needsRenewal.map((post) => (
         <MemberRenewCard key={post.id} post={post} />
       ))}
+      {listedIds && <p className="text-[11px] text-[var(--ink-mute)]">閲覧数は、{VIEW_COUNT_NOTE}</p>}
       {sections.map(
         ({ title, posts }) =>
           posts.length > 0 && (
@@ -84,7 +101,21 @@ export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, de
               <div className="space-y-3">
                 {posts.map((post) => (
                   <div key={post.id}>
-                    <PostCard post={post} footer={<PostMeta post={post} lastSeen={lastSeen} />} ownTeam />
+                    <PostCard
+                      post={post}
+                      footer={
+                        <PostMeta
+                          post={post}
+                          lastSeen={lastSeen}
+                          stats={
+                            viewCounts?.get(post.id) === null ? null : (
+                              <PostStats postId={post.id} views={viewCounts?.get(post.id) ?? undefined} />
+                            )
+                          }
+                        />
+                      }
+                      ownTeam
+                    />
                     {title === '決定済み' && post.post_type === 'match' && (
                       <Link
                         href={`/posts/new/helper?from=${post.id}`}
@@ -103,7 +134,7 @@ export default function MyTeamPosts({ teamId, renderedAt, needsRenewal, open, de
   )
 }
 
-function PostMeta({ post, lastSeen }: { post: MyTeamPost; lastSeen: string | null }) {
+function PostMeta({ post, lastSeen, stats }: { post: MyTeamPost; lastSeen: string | null; stats: React.ReactNode }) {
   const since = lastSeen ? new Date(lastSeen).getTime() : null
   const newCount = since === null ? 0 : post.incomingChatTimes.filter((t) => new Date(t).getTime() > since).length
 
@@ -116,6 +147,7 @@ function PostMeta({ post, lastSeen }: { post: MyTeamPost; lastSeen: string | nul
         {newCount > 0 && (
           <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--clay)] text-white">新着{newCount}件</span>
         )}
+        {stats}
       </div>
       <p className="text-[11px] text-[var(--ink-mute)] truncate">投稿：{post.posterName}</p>
     </div>
