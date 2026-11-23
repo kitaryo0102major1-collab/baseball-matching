@@ -5,6 +5,40 @@ import { supabase as anon } from './supabase'
 import { createClient } from './supabase/client'
 import type { GameRecords, SendResult } from './gameRecords'
 
+// 送る列（game_id は別に付ける）。created_at は出場の行だけ（交代の順番に使う）
+const LINEUP_COLUMNS = ['id', 'player_id', 'guest_name', 'guest_bats', 'guest_throws', 'batting_slot', 'position', 'entry_type', 'entered_at', 'created_at']
+const PA_COLUMNS = [
+  'id',
+  'seq',
+  'inning',
+  'is_offense',
+  'batter_lineup_id',
+  'opponent_batting_slot',
+  'pitcher_lineup_id',
+  'opp_pitcher_throws',
+  'result',
+  'fielders',
+  'direction_pos',
+  'direction_x',
+  'direction_y',
+  'rbi',
+  'outs_on_play',
+  'runners_before',
+]
+const EVENT_COLUMNS = [
+  'id',
+  'plate_appearance_id',
+  'seq',
+  'inning',
+  'is_offense',
+  'runner_lineup_id',
+  'opponent_slot',
+  'from_base',
+  'to_base',
+  'reason',
+  'earned',
+]
+
 // チーム: 端末にない行を消し、ある行を upsert する。送る前の games.updated_at が基準と違えば conflict
 export async function sendTeamRecords(gameId: string, records: GameRecords, expected: string | null): Promise<SendResult> {
   const sb = createClient()
@@ -24,17 +58,26 @@ export async function sendTeamRecords(gameId: string, records: GameRecords, expe
   await removeMissing('plate_appearances', records.pas.map((p) => p.id))
   await removeMissing('game_lineups', records.lineups.map((l) => l.id))
 
-  const upsert = async (table: 'game_lineups' | 'plate_appearances' | 'runner_events', rows: object[]) => {
+  // まとめて upsert するときは、全部の行を同じ列にそろえる。サーバーから読んだ行（created_at などがある）と
+  // 画面で作った行（ない）が混ざると、ない列が null になって失敗するため
+  const upsert = async (table: 'game_lineups' | 'plate_appearances' | 'runner_events', rows: object[], columns: string[]) => {
     if (rows.length === 0) return
-    const { error } = await sb.from(table).upsert(rows.map((r) => ({ ...r, game_id: gameId })))
+    const picked = rows.map((r) => {
+      const src = r as Record<string, unknown>
+      const out: Record<string, unknown> = { game_id: gameId }
+      for (const c of columns) out[c] = src[c] ?? null
+      return out
+    })
+    const { error } = await sb.from(table).upsert(picked)
     if (error) throw error
   }
   await upsert(
     'game_lineups',
-    records.lineups.map((r) => ({ ...r, guest_name: null, guest_bats: null, guest_throws: null }))
+    records.lineups.map((r) => ({ ...r, guest_name: null, guest_bats: null, guest_throws: null })),
+    LINEUP_COLUMNS
   )
-  await upsert('plate_appearances', records.pas)
-  await upsert('runner_events', records.events)
+  await upsert('plate_appearances', records.pas, PA_COLUMNS)
+  await upsert('runner_events', records.events, EVENT_COLUMNS)
 
   // games を更新して updated_at を進める（ほかの端末がこの保存に気づけるように）
   const { data: saved, error } = await sb
