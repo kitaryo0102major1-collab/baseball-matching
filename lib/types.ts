@@ -96,6 +96,12 @@ export interface TeamProfile {
   updated_at: string
   city: string | null
   travel_range: TravelRange | null
+  // 成績の設定（スコア機能）。古い取得箇所では列を選んでいないことがあるので任意
+  stats_public?: boolean
+  innings_per_game?: number
+  qualify_pa_rate?: number
+  qualify_ip_rate?: number
+  season_start_month?: number
 }
 
 export interface Team extends TeamProfile {
@@ -216,3 +222,50 @@ export interface Player {
 }
 
 export type PlayerInput = Pick<Player, 'real_name' | 'display_name' | 'number' | 'throws' | 'bats' | 'positions' | 'is_helper' | 'active'>
+
+// 試合（games）。team_id が null ならゲストの試合
+export type GameType = '練習試合' | '公式戦'
+export type DefenseMode = 'summary' | 'detailed'
+export type GameStatus = '入力中' | '確定'
+export type EndReason = '通常' | '時間切れ' | 'コールド' | '没収'
+
+export interface Game {
+  id: string
+  team_id: string | null
+  guest_team_name: string | null
+  game_date: string
+  game_type: GameType
+  tournament_name: string | null
+  opponent_name: string
+  opponent_team_id: string | null
+  source_post_id: string | null
+  venue: string | null
+  batting_first: boolean
+  scheduled_innings: number
+  end_reason: EndReason
+  forfeit_result: '勝ち' | '負け' | null
+  defense_mode: DefenseMode
+  lineup_size: number
+  use_dh: boolean
+  opponent_innings: number[]
+  status: GameStatus
+  memo: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 試合情報のフォームで入力する項目（終わり方・状態は確定時に決める）
+export type GameInfoInput = Pick<
+  Game,
+  | 'game_date'
+  | 'guest_team_name'
+  | 'opponent_name'
+  | 'venue'
+  | 'game_type'
+  | 'tournament_name'
+  | 'batting_first'
+  | 'scheduled_innings'
+  | 'defense_mode'
+  | 'lineup_size'
+  | 'use_dh'
+>
