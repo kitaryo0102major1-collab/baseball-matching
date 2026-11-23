@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { jstMonthDay } from '@/lib/dates'
+import { postPlaceLabel } from '@/lib/postRules'
 import type { MatchPost, PostTeamBadge } from '@/lib/types'
 import FieldBadge from './FieldBadge'
 import LevelBadge from './LevelBadge'
@@ -24,7 +25,7 @@ export default function PostCard({ post, footer }: Props) {
   const isClosed = post.status !== '募集中'
   const isMember = post.post_type === 'member'
 
-  const areaPart = [post.prefecture, post.area_detail].filter(Boolean).join(' ')
+  const areaPart = [postPlaceLabel(post), post.area_detail].filter(Boolean).join(' ')
   const locationPart = [areaPart, post.venue_name].filter(Boolean).join('／')
 
   let metaLine: string

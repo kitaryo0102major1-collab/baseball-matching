@@ -34,6 +34,13 @@ export function syncListUrl(params: URLSearchParams) {
   }
 }
 
+// 場所の表示「都道府県 市区町村 ・ 移動範囲」。市区町村がない既存の募集は都道府県だけ（移動範囲も出さない）
+export function postPlaceLabel(post: Pick<MatchPost, 'prefecture' | 'city' | 'travel_range'>) {
+  if (!post.city) return post.prefecture ?? ''
+  const place = [post.prefecture, post.city].filter(Boolean).join(' ')
+  return post.travel_range ? `${place} ・ ${post.travel_range}` : place
+}
+
 export function postListPath(type: MatchPost['post_type']) {
   return type === 'match' ? '/posts' : `/posts?type=${type}`
 }

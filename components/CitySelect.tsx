@@ -14,10 +14,12 @@ interface Props {
   value: string
   onChange: (city: string) => void
   className?: string
+  // 未選択の選択肢の文言（絞り込みでは「市区町村 すべて」など）
+  placeholder?: string
 }
 
 // 都道府県を選ぶまでは表示しない。値は市区町村名（政令指定都市は市単位）
-export default function CitySelect({ prefecture, value, onChange, className }: Props) {
+export default function CitySelect({ prefecture, value, onChange, className, placeholder = '市区町村を選択' }: Props) {
   if (!prefecture) return null
 
   const options = cityOptions(prefecture)
@@ -26,7 +28,7 @@ export default function CitySelect({ prefecture, value, onChange, className }: P
 
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={className} aria-label="市区町村">
-      <option value="">市区町村を選択</option>
+      <option value="">{placeholder}</option>
       {options.map((city) => (
         <option key={city} value={city}>
           {city}

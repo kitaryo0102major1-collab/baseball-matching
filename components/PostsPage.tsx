@@ -9,6 +9,7 @@ import { POST_TYPE_LABELS, type MatchPostWithTeam, type FieldStatus, type Level,
 import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
 import { postListPath, syncListUrl } from '@/lib/postRules'
 import { PREFECTURES } from '@/lib/prefectures'
+import CitySelect from '@/components/CitySelect'
 import PostCard from '@/components/PostCard'
 import PostMethodSheet from '@/components/PostMethodSheet'
 import TeamTypePosts from '@/components/TeamTypePosts'
@@ -27,6 +28,8 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
   const searchParams = useSearchParams()
 
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') ?? '')
+  // 市区町村は都道府県を選んでいるときだけ有効
+  const [city, setCity] = useState(searchParams.get('prefecture') ? (searchParams.get('city') ?? '') : '')
   const [date, setDate] = useState(searchParams.get('date') ?? '')
   const [field, setField] = useState<'' | FieldStatus>((searchParams.get('field') as FieldStatus) ?? '')
   const [level, setLevel] = useState<'' | Level>((searchParams.get('level') as Level) ?? '')
@@ -45,6 +48,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
 
     let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).eq('post_type', 'match').gte('game_date', floor)
     if (prefecture) query = query.eq('prefecture', prefecture)
+    if (city) query = query.eq('city', city)
     if (field) query = query.eq('field_status', field)
     if (level) query = query.eq('level', level)
     if (!showDecided) query = query.neq('status', '決定済み')
@@ -52,7 +56,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
     const { data, error } = await query
     if (!error && data) setPosts(data as unknown as MatchPostWithTeam[])
     setLoading(false)
-  }, [prefecture, date, field, level, showDecided])
+  }, [prefecture, city, date, field, level, showDecided])
 
   useEffect(() => {
     fetchPosts()
@@ -61,16 +65,23 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
   useEffect(() => {
     const params = new URLSearchParams()
     if (prefecture) params.set('prefecture', prefecture)
+    if (city) params.set('city', city)
     if (date) params.set('date', date)
     if (field) params.set('field', field)
     if (level) params.set('level', level)
     if (weekend) params.set('weekend', '1')
     if (!showDecided) params.set('decided', '0')
     syncListUrl(params)
-  }, [prefecture, date, field, level, weekend, showDecided])
+  }, [prefecture, city, date, field, level, weekend, showDecided])
+
+  function changePrefecture(value: string) {
+    setPrefecture(value)
+    setCity('')
+  }
 
   function resetAll() {
     setPrefecture('')
+    setCity('')
     setDate('')
     setField('')
     setLevel('')
@@ -95,7 +106,8 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
     : ''
 
   const appliedChips: { key: string; label: string; onRemove: () => void }[] = []
-  if (prefecture) appliedChips.push({ key: 'prefecture', label: prefecture, onRemove: () => setPrefecture('') })
+  if (prefecture) appliedChips.push({ key: 'prefecture', label: prefecture, onRemove: () => changePrefecture('') })
+  if (city) appliedChips.push({ key: 'city', label: city, onRemove: () => setCity('') })
   if (date) appliedChips.push({ key: 'date', label: `${dateLabel}以降`, onRemove: () => setDate('') })
   if (field) {
     appliedChips.push({
@@ -110,7 +122,7 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
 
   function renderPrefectureSelect(className: string) {
     return (
-      <select value={prefecture} onChange={(e) => setPrefecture(e.target.value)} className={className}>
+      <select value={prefecture} onChange={(e) => changePrefecture(e.target.value)} className={className}>
         <option value="">都道府県 すべて</option>
         {PREFECTURES.map((p) => (
           <option key={p} value={p}>
@@ -118,6 +130,18 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
           </option>
         ))}
       </select>
+    )
+  }
+
+  function renderCitySelect(className: string) {
+    return (
+      <CitySelect
+        prefecture={prefecture}
+        value={city}
+        onChange={setCity}
+        className={className}
+        placeholder="市区町村 すべて"
+      />
     )
   }
 
@@ -180,6 +204,9 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
           )}
           {renderDateInput('rounded-[10px] px-3 py-2.5 text-sm font-bold bg-[var(--bg)] border border-[var(--line)]')}
         </div>
+        {renderCitySelect(
+          'w-full rounded-[10px] px-3 py-2.5 text-sm font-bold bg-[var(--bg)] border border-[var(--line)]'
+        )}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {renderFieldChips()}
           <button
@@ -214,6 +241,14 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
               'w-full rounded-[10px] px-3 py-2.5 text-sm font-bold bg-[var(--bg)] border border-[var(--line)]'
             )}
           </div>
+          {prefecture && (
+            <div>
+              <p className="text-[13px] text-[var(--ink-mute)] mb-1">市区町村</p>
+              {renderCitySelect(
+                'w-full rounded-[10px] px-3 py-2.5 text-sm font-bold bg-[var(--bg)] border border-[var(--line)]'
+              )}
+            </div>
+          )}
           <div>
             <p className="text-[13px] text-[var(--ink-mute)] mb-1">日付</p>
             {renderDateInput(
@@ -280,10 +315,19 @@ function MatchPosts({ onOpenSheet }: { onOpenSheet: () => void }) {
               <p className="text-[var(--ink-sub)] text-sm mb-1">この条件の募集はまだありません。</p>
               <p className="text-[var(--ink-mute)] text-xs mb-6">次のどれかを試してみてください。</p>
               <div className="max-w-xs mx-auto space-y-2.5">
+                {city && (
+                  <button
+                    type="button"
+                    onClick={() => setCity('')}
+                    className="w-full bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] text-sm font-semibold py-2.5 rounded-xl"
+                  >
+                    市区町村を外して{prefecture}全体で見る
+                  </button>
+                )}
                 {prefecture && (
                   <button
                     type="button"
-                    onClick={() => setPrefecture('')}
+                    onClick={() => changePrefecture('')}
                     className="w-full bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] text-sm font-semibold py-2.5 rounded-xl"
                   >
                     エリアを全国に広げて見る
@@ -324,11 +368,24 @@ const TAB_ACTIVE: Record<PostType, string> = {
   member: 'border-[#1177dd] text-[#1177dd]',
 }
 
+// タブを切り替えても、全タブ共通の条件（都道府県・市区町村）は引き継ぐ
+const SHARED_FILTER_KEYS = ['prefecture', 'city'] as const
+
 function PostsContent() {
   const searchParams = useSearchParams()
   const typeParam = searchParams.get('type')
   const type: PostType = typeParam === 'helper' || typeParam === 'member' ? typeParam : 'match'
   const [methodSheetOpen, setMethodSheetOpen] = useState(false)
+
+  function tabHref(t: PostType) {
+    const params = new URLSearchParams(t === 'match' ? undefined : { type: t })
+    for (const key of SHARED_FILTER_KEYS) {
+      const value = searchParams.get(key)
+      if (value) params.set(key, value)
+    }
+    const qs = params.toString()
+    return qs ? `/posts?${qs}` : postListPath(t)
+  }
 
   const postButtonClass =
     'shrink-0 bg-[var(--green)] hover:opacity-90 text-white text-sm font-bold px-4 py-2 rounded-lg transition-opacity'
@@ -352,7 +409,7 @@ function PostsContent() {
         {(['match', 'helper', 'member'] as const).map((t) => (
           <Link
             key={t}
-            href={postListPath(t)}
+            href={tabHref(t)}
             aria-current={t === type ? 'page' : undefined}
             className={`text-center text-sm py-2.5 border-b-2 -mb-px ${
               t === type ? `font-bold ${TAB_ACTIVE[t]}` : 'border-transparent text-[var(--ink-mute)]'

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { createClient } from '@/lib/supabase/server'
 import { todayJST } from '@/lib/dates'
 import { POST_COLUMNS, getPostContacts } from '@/lib/postQueries'
-import { memberVisibility, postListPath } from '@/lib/postRules'
+import { memberVisibility, postListPath, postPlaceLabel } from '@/lib/postRules'
 import { pageMetadata, truncateText } from '@/lib/seo'
 import { getPostPermissions } from '@/lib/postPermissions'
 import type { MatchPost, TeamProfile } from '@/lib/types'
@@ -144,7 +144,7 @@ export default async function PostDetailPage({ params }: Props) {
   const showChat = !memberClosed && !memberUnlisted
   const contacts = post.post_type === 'match' || canApply ? await getPostContacts(await createClient(), post.id) : null
 
-  const placeLine = [post.prefecture, post.area_detail].filter(Boolean).join(' ')
+  const placeLine = [postPlaceLabel(post), post.area_detail].filter(Boolean).join(' ')
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">

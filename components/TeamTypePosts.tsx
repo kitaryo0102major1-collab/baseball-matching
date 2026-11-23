@@ -9,6 +9,7 @@ import { POST_WITH_TEAM_SELECT } from '@/lib/postQueries'
 import { memberListingCutoff, syncListUrl } from '@/lib/postRules'
 import { PREFECTURES } from '@/lib/prefectures'
 import { POSITIONS, type MatchPostWithTeam, type Position } from '@/lib/types'
+import CitySelect from './CitySelect'
 import PostCard from './PostCard'
 
 // 「どこでも」の募集はどのポジションで絞っても該当するので、絞り込みの選択肢には出さない
@@ -34,6 +35,8 @@ export default function TeamTypePosts({ type }: Props) {
 
   const positionParam = searchParams.get('position')
   const [prefecture, setPrefecture] = useState(searchParams.get('prefecture') ?? '')
+  // 市区町村は都道府県を選んでいるときだけ有効
+  const [city, setCity] = useState(searchParams.get('prefecture') ? (searchParams.get('city') ?? '') : '')
   const [position, setPosition] = useState<Position | ''>(FILTER_POSITIONS.find((p) => p === positionParam) ?? '')
   const [date, setDate] = useState(searchParams.get('date') ?? '')
   const [weekend, setWeekend] = useState(searchParams.get('weekend') === '1')
@@ -51,6 +54,7 @@ export default function TeamTypePosts({ type }: Props) {
       setLoading(true)
       let query = supabase.from('match_posts').select(POST_WITH_TEAM_SELECT).eq('post_type', type)
       if (prefecture) query = query.eq('prefecture', prefecture)
+      if (city) query = query.eq('city', city)
       if (position) query = query.overlaps('positions', [position, 'どこでも'])
 
       if (isHelper) {
@@ -75,11 +79,12 @@ export default function TeamTypePosts({ type }: Props) {
     return () => {
       cancelled = true
     }
-  }, [type, isHelper, prefecture, position, date, showDecided, beginnerOk, trialOk])
+  }, [type, isHelper, prefecture, city, position, date, showDecided, beginnerOk, trialOk])
 
   useEffect(() => {
     const params = new URLSearchParams({ type })
     if (prefecture) params.set('prefecture', prefecture)
+    if (city) params.set('city', city)
     if (position) params.set('position', position)
     if (isHelper) {
       if (date) params.set('date', date)
@@ -90,10 +95,16 @@ export default function TeamTypePosts({ type }: Props) {
       if (trialOk) params.set('trial', '1')
     }
     syncListUrl(params)
-  }, [type, isHelper, prefecture, position, date, weekend, showDecided, beginnerOk, trialOk])
+  }, [type, isHelper, prefecture, city, position, date, weekend, showDecided, beginnerOk, trialOk])
+
+  function changePrefecture(value: string) {
+    setPrefecture(value)
+    setCity('')
+  }
 
   function resetAll() {
     setPrefecture('')
+    setCity('')
     setPosition('')
     setDate('')
     setWeekend(false)
@@ -113,7 +124,7 @@ export default function TeamTypePosts({ type }: Props) {
       <aside className="lg:sticky lg:top-20 lg:w-64 shrink-0 space-y-3 mb-5 lg:mb-0">
         <div>
           <p className="text-[13px] text-[var(--ink-mute)] mb-1">都道府県</p>
-          <select value={prefecture} onChange={(e) => setPrefecture(e.target.value)} className={FIELD_CLASS}>
+          <select value={prefecture} onChange={(e) => changePrefecture(e.target.value)} className={FIELD_CLASS}>
             <option value="">都道府県 すべて</option>
             {PREFECTURES.map((p) => (
               <option key={p} value={p}>
@@ -122,6 +133,19 @@ export default function TeamTypePosts({ type }: Props) {
             ))}
           </select>
         </div>
+
+        {prefecture && (
+          <div>
+            <p className="text-[13px] text-[var(--ink-mute)] mb-1">市区町村</p>
+            <CitySelect
+              prefecture={prefecture}
+              value={city}
+              onChange={setCity}
+              className={FIELD_CLASS}
+              placeholder="市区町村 すべて"
+            />
+          </div>
+        )}
 
         {isHelper && (
           <div>
@@ -194,6 +218,15 @@ export default function TeamTypePosts({ type }: Props) {
           <div className="text-center py-16">
             <p className="text-[var(--ink-sub)] text-sm mb-6">この条件の募集はまだありません。</p>
             <div className="max-w-xs mx-auto space-y-2.5">
+              {city && (
+                <button
+                  type="button"
+                  onClick={() => setCity('')}
+                  className="w-full bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] text-sm font-semibold py-2.5 rounded-xl"
+                >
+                  市区町村を外して{prefecture}全体で見る
+                </button>
+              )}
               <button
                 type="button"
                 onClick={resetAll}
