@@ -136,6 +136,8 @@ export default function ScoreInput({
   const [moves, setMoves] = useState<Move[]>([])
   const [rbi, setRbi] = useState(0)
   const [rbiTouched, setRbiTouched] = useState(false)
+  // 予想を出したときの打席（画面が次の打者へ進んでいたら、記録の前に予想し直す）
+  const [predictedSeq, setPredictedSeq] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [undoOpen, setUndoOpen] = useState(false)
@@ -170,6 +172,7 @@ export default function ScoreInput({
   function chooseResult(r: PaResult) {
     const p = predictPlay(r, state.bases, state.outs)
     setResult(r)
+    setPredictedSeq(state.nextEventSeq)
     setMoves(p.moves)
     setRbi(p.rbi)
     setRbiTouched(false)
@@ -212,7 +215,10 @@ export default function ScoreInput({
 
   async function record() {
     if (!result || !state.batter) return
-    if (!moves.some((m) => m.from === 'B')) {
+    // 結果を選んだあとに記録が進んでいた（塁上が変わった）ときは、今の塁上で予想し直す
+    const fresh = predictedSeq !== state.nextEventSeq ? predictPlay(result, state.bases, state.outs) : null
+    const useMoves = fresh ? fresh.moves : moves
+    if (!useMoves.some((m) => m.from === 'B')) {
       setError('打者がどうなったかを選んでください。')
       return
     }
@@ -221,8 +227,8 @@ export default function ScoreInput({
       state,
       {
         result,
-        moves,
-        rbi,
+        moves: useMoves,
+        rbi: fresh ? fresh.rbi : rbi,
         fielders: fielders.length ? fielders.join('-') : null,
         direction: NO_DIRECTION_RESULTS.includes(result) ? null : direction,
         oppPitcherThrows: oppThrows,
