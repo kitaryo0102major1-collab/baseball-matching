@@ -1,9 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { LineupRow } from '@/lib/lineup'
 import { NO_DIRECTION_RESULTS, OUT_RESULTS, predictPlay, rbiFor } from '@/lib/scoring/predict'
+import {
+  BETWEEN_KINDS,
+  buildBetweenRecord,
+  defaultTargets,
+  lastOperation,
+  predictBetween,
+  withoutOperation,
+  type BetweenKind,
+  type LastOperation,
+} from '@/lib/scoring/between'
 import { buildOffenseRecord } from '@/lib/scoring/record'
 import { BASES, computeGameState } from '@/lib/scoring/state'
 import type { Base, Bases, FromBase, Move, PaResult, PlateAppearance, RunnerEvent, ToBase } from '@/lib/scoring/types'
@@ -20,9 +30,10 @@ interface Props {
   nameOf: (lineupId: string | null) => string
   batsOf: (row: LineupRow) => Bats | null
   lineupHref: string
-  // 失敗したらエラーメッセージを返す。all〜 は保存後の全体（ゲストは丸ごと送る）
-  onRecord: (pa: PlateAppearance, events: RunnerEvent[], allPas: PlateAppearance[], allEvents: RunnerEvent[]) => Promise<string | null>
-  onUndo: (pa: PlateAppearance, allPas: PlateAppearance[], allEvents: RunnerEvent[]) => Promise<string | null>
+  // 失敗したらエラーメッセージを返す。pa は打席の間のプレーでは null。all〜 は保存後の全体（ゲストは丸ごと送る）
+  onRecord: (pa: PlateAppearance | null, events: RunnerEvent[], allPas: PlateAppearance[], allEvents: RunnerEvent[]) => Promise<string | null>
+  // 直前の操作（打席、または打席の間のプレー）の取り消し
+  onUndo: (op: LastOperation, allPas: PlateAppearance[], allEvents: RunnerEvent[]) => Promise<string | null>
 }
 
 // 結果ボタン。子の選択肢があるものは、最初の値を初期値にする（2タップで記録できるように）
@@ -126,6 +137,15 @@ export default function ScoreInput({
   const [error, setError] = useState<string | null>(null)
   const [undoOpen, setUndoOpen] = useState(false)
   const [undoError, setUndoError] = useState<string | null>(null)
+  const [playOpen, setPlayOpen] = useState(false)
+  // 3アウトで攻守交代したときの短い表示（「1回表 終了」）
+  const [inningEnd, setInningEnd] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!inningEnd) return
+    const t = setTimeout(() => setInningEnd(null), 2500)
+    return () => clearTimeout(t)
+  }, [inningEnd])
 
   const state = useMemo(() => computeGameState(game, rows, pas, events, skipped), [game, rows, pas, events, skipped])
   const top = state.top
@@ -193,7 +213,6 @@ export default function ScoreInput({
       setError('打者がどうなったかを選んでください。')
       return
     }
-    setBusy(true)
     setError(null)
     const rec = buildOffenseRecord(
       state,
@@ -207,27 +226,39 @@ export default function ScoreInput({
       },
       () => crypto.randomUUID()
     )
-    const allPas = [...pas, rec.pa]
-    const allEvents = [...events, ...rec.events]
-    const err = await onRecord(rec.pa, rec.events, allPas, allEvents)
+    const err = await save(rec.pa, rec.events)
+    if (err) setError(err)
+  }
+
+  // 保存して画面の記録を進める。3アウトで攻守交代したら「◯回表 終了」を出す
+  async function save(pa: PlateAppearance | null, newEvents: RunnerEvent[]) {
+    const allPas = pa ? [...pas, pa] : pas
+    const allEvents = [...events, ...newEvents]
+    setBusy(true)
+    const err = await onRecord(pa, newEvents, allPas, allEvents)
     setBusy(false)
-    if (err) {
-      setError(err)
-      return
-    }
+    if (err) return err
+    const next = computeGameState(game, rows, allPas, allEvents, skipped)
+    if (state.isOffense && (next.inning !== state.inning || next.isOffense !== state.isOffense)) setInningEnd(`${half} 終了`)
     setPas(allPas)
     setEvents(allEvents)
     reset()
+    return null
+  }
+
+  async function recordPlay(moves: Move[]) {
+    if (moves.length === 0) return '走者の動きを選んでください。'
+    const err = await save(null, buildBetweenRecord(state, moves, () => crypto.randomUUID()))
+    if (!err) setPlayOpen(false)
+    return err
   }
 
   async function undo() {
-    const last = [...pas].sort((a, b) => b.seq - a.seq)[0]
-    if (!last) return
+    if (!lastOp) return
     setBusy(true)
     setUndoError(null)
-    const allPas = pas.filter((p) => p.id !== last.id)
-    const allEvents = events.filter((e) => e.plate_appearance_id !== last.id)
-    const err = await onUndo(last, allPas, allEvents)
+    const { pas: allPas, events: allEvents } = withoutOperation(lastOp, pas, events)
+    const err = await onUndo(lastOp, allPas, allEvents)
     setBusy(false)
     if (err) {
       setUndoError(err)
@@ -242,7 +273,17 @@ export default function ScoreInput({
   const batter = state.batter
   const batterBats = batter ? batsOf(batter) : null
   const batterSide = batterBats === 'S' ? (oppThrows === 'R' ? '左打席' : '右打席') : batterBats === 'L' ? '左打' : batterBats === 'R' ? '右打' : null
-  const lastPa = [...pas].sort((a, b) => b.seq - a.seq)[0]
+  const lastOp = lastOperation(pas, events)
+  // 取り消す操作の1行の説明
+  const baseLabel = (b: string) => (b === 'H' ? '本塁' : b === 'OUT' ? 'アウト' : b === 'B' ? '打者' : `${b}塁`)
+  const lastOpLabel = !lastOp
+    ? ''
+    : lastOp.kind === 'pa'
+      ? `${lastOp.pa.inning}回 ${lastOp.pa.is_offense ? nameOf(lastOp.pa.batter_lineup_id) : '相手'}の打席（${lastOp.pa.result}）`
+      : `${lastOp.events[0].inning}回 ${lastOp.events[0].reason}（${lastOp.events
+          .map((e) => `${nameOf(e.runner_lineup_id)} ${baseLabel(e.from_base)}→${baseLabel(e.to_base)}`)
+          .join('、')}）`
+  const hasRunners = BASES.some((b) => state.bases[b])
   const showFielders = result && (OUT_RESULTS.includes(result) || result === '失策出塁' || result === '野選')
   const participants: { from: FromBase; name: string }[] = [
     ...(['3', '2', '1'] as Base[]).filter((b) => state.bases[b]).map((b) => ({ from: b as FromBase, name: nameOf(state.bases[b]!.lineupId) })),
@@ -274,6 +315,12 @@ export default function ScoreInput({
           </div>
         </div>
       </div>
+
+      {inningEnd && (
+        <p role="status" className="mt-3 text-center text-sm font-bold text-white bg-[var(--ink)] rounded-xl py-2">
+          {inningEnd}
+        </p>
+      )}
 
       {state.defensePending ? (
         <section className="mt-4 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 space-y-4 text-center">
@@ -324,6 +371,23 @@ export default function ScoreInput({
               </div>
             </div>
           </section>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPlayOpen(true)}
+              disabled={!hasRunners}
+              className="min-h-11 rounded-xl border border-[var(--line)] bg-[var(--surface)] text-sm font-bold text-[var(--ink)] disabled:opacity-40"
+            >
+              走者のプレー
+            </button>
+            <Link
+              href={lineupHref}
+              className="min-h-11 flex items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface)] text-sm font-bold text-[var(--ink)]"
+            >
+              交代（代打・代走など）
+            </Link>
+          </div>
 
           {/* ① 結果 */}
           <section className="space-y-2">
@@ -456,7 +520,7 @@ export default function ScoreInput({
       )}
 
       {/* 守備の回・打者が未設定のときも取り消せるように、画面の状態によらず出す */}
-      {lastPa && (
+      {lastOp && (
         <button
           type="button"
           onClick={() => {
@@ -465,7 +529,7 @@ export default function ScoreInput({
           }}
           className="mt-4 w-full text-xs text-[var(--ink-mute)] underline min-h-11"
         >
-          直前の打席を取り消す
+          直前の操作を取り消す
         </button>
       )}
 
@@ -487,14 +551,147 @@ export default function ScoreInput({
 
       <ConfirmDialog
         open={undoOpen}
-        title="直前の打席を取り消しますか？"
-        description={lastPa ? <>{lastPa.inning}回の{lastPa.is_offense ? nameOf(lastPa.batter_lineup_id) : '相手'}の打席（{lastPa.result}）と、その走者の動きを消します。</> : null}
+        title="直前の操作を取り消しますか？"
+        description={lastOpLabel}
         confirmLabel="取り消す"
         busy={busy}
         error={undoError}
         onConfirm={undo}
         onClose={() => setUndoOpen(false)}
       />
+
+      {playOpen && (
+        <BetweenSheet bases={state.bases} nameOf={nameOf} busy={busy} onSave={recordPlay} onClose={() => setPlayOpen(false)} />
+      )}
+    </div>
+  )
+}
+
+// 打席と打席の間のプレー（盗塁・暴投など）
+function BetweenSheet({
+  bases,
+  nameOf,
+  busy,
+  onSave,
+  onClose,
+}: {
+  bases: Bases
+  nameOf: (lineupId: string | null) => string
+  busy: boolean
+  onSave: (moves: Move[]) => Promise<string | null>
+  onClose: () => void
+}) {
+  const [kind, setKind] = useState<BetweenKind>('盗塁')
+  const [targets, setTargets] = useState<Base[]>(() => defaultTargets('盗塁', bases))
+  const [moves, setMoves] = useState<Move[]>(() => predictBetween('盗塁', bases, defaultTargets('盗塁', bases)))
+  const [error, setError] = useState<string | null>(null)
+  const runners = (['3', '2', '1'] as Base[]).filter((b) => bases[b])
+
+  function chooseKind(k: BetweenKind) {
+    const t = defaultTargets(k, bases)
+    setKind(k)
+    setTargets(t)
+    setMoves(predictBetween(k, bases, t))
+    setError(null)
+  }
+
+  function toggleTarget(b: Base) {
+    const t = targets.includes(b) ? targets.filter((x) => x !== b) : [...targets, b]
+    setTargets(t)
+    setMoves(predictBetween(kind, bases, t))
+  }
+
+  function setDest(from: Base, to: ToBase | 'stay') {
+    const next = moves.filter((m) => m.from !== from)
+    if (to !== 'stay') next.push({ from, to, reason: kind })
+    setMoves(next)
+    if (to === 'stay') setTargets(targets.filter((x) => x !== from))
+    else if (!targets.includes(from)) setTargets([...targets, from])
+  }
+
+  async function submit() {
+    setError(null)
+    const err = await onSave(moves)
+    if (err) setError(err)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="走者のプレー"
+        className="relative w-full sm:max-w-md max-h-[92dvh] overflow-y-auto bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl border border-[var(--line)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 bg-[var(--surface)] border-b border-[var(--line)] px-5 py-3 flex items-center justify-between">
+          <p className="font-bold text-[var(--ink)]">走者のプレー</p>
+          <button type="button" onClick={onClose} className="text-sm text-[var(--ink-mute)] min-h-11 px-2">
+            閉じる
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-5">
+          <div>
+            <p className="text-xs font-bold text-[var(--ink-mute)] mb-1.5">何が起きたか</p>
+            <div className="grid grid-cols-4 gap-2">
+              {BETWEEN_KINDS.map((k) => (
+                <button key={k} type="button" aria-pressed={kind === k} onClick={() => chooseKind(k)} className={`${choiceClass(kind === k)} text-[13px]`}>
+                  {k}
+                </button>
+              ))}
+            </div>
+            {kind === 'ボーク' && <p className="text-xs text-[var(--ink-mute)] mt-1.5">ボークは全走者が1つ進みます。</p>}
+          </div>
+
+          {kind !== 'ボーク' && (
+            <div>
+              <p className="text-xs font-bold text-[var(--ink-mute)] mb-1.5">対象の走者</p>
+              <div className="flex flex-wrap gap-2">
+                {runners.map((b) => (
+                  <button key={b} type="button" aria-pressed={targets.includes(b)} onClick={() => toggleTarget(b)} className={`${choiceClass(targets.includes(b))} px-3`}>
+                    {b}塁 {nameOf(bases[b]!.lineupId)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="text-xs font-bold text-[var(--ink-mute)] mb-1.5">走者の動き（予想。違えば直す）</p>
+            <ul className="space-y-2">
+              {runners.map((b) => {
+                const current = moves.find((m) => m.from === b)?.to ?? 'stay'
+                return (
+                  <li key={b} className="bg-[var(--bg)] border border-[var(--line)] rounded-xl p-2">
+                    <p className="text-xs text-[var(--ink-sub)] mb-1.5 truncate">
+                      <span className="font-bold text-[var(--ink)]">{b}塁</span> {nameOf(bases[b]!.lineupId)}
+                    </p>
+                    <div className="flex gap-1.5">
+                      {destOptions(b).map((d) => (
+                        <button key={d} type="button" aria-pressed={current === d} onClick={() => setDest(b, d)} className={`${choiceClass(current === d)} flex-1 text-xs px-1`}>
+                          {DEST_LABELS[d]}
+                        </button>
+                      ))}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="text-xs text-[var(--ink-mute)] mt-1.5">この得点は打点になりません。</p>
+          </div>
+
+          {error && <p className="text-xs text-[#A3462B]">{error}</p>}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy || moves.length === 0}
+            className="w-full bg-[var(--green)] text-white font-bold min-h-12 rounded-xl text-base disabled:opacity-40"
+          >
+            {busy ? '記録中...' : '記録する'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

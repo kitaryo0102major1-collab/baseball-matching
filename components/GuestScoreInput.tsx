@@ -59,7 +59,7 @@ export default function GuestScoreInput({ gameId }: { gameId: string }) {
         onRecord={(_pa, _events, allPas, allEvents) =>
           saveAll(allPas, allEvents, '記録できませんでした。通信状態を確認して、もう一度お試しください。')
         }
-        onUndo={(_pa, allPas, allEvents) => saveAll(allPas, allEvents, '取り消せませんでした。もう一度お試しください。')}
+        onUndo={(_op, allPas, allEvents) => saveAll(allPas, allEvents, '取り消せませんでした。もう一度お試しください。')}
       />
     </>
   )

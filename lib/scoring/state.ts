@@ -58,10 +58,15 @@ export function halfBases(events: RunnerEvent[], inning: number, isOffense: bool
   let bases: Bases = { ...EMPTY_BASES }
   let i = 0
   while (i < list.length) {
-    // 同じ打席の動き（続いている行）を1つのプレーとして扱う
+    // 同じ打席の動き、または同じ seq の打席の間の動き（続いている行）を1つのプレーとして扱う
     const paId = list[i].plate_appearance_id
+    const seq = list[i].seq
     let j = i + 1
-    while (paId && j < list.length && list[j].plate_appearance_id === paId) j++
+    while (
+      j < list.length &&
+      (paId ? list[j].plate_appearance_id === paId : !list[j].plate_appearance_id && list[j].seq === seq)
+    )
+      j++
     bases = applyMoves(
       bases,
       list.slice(i, j).map((e) => ({ from: e.from_base, to: e.to_base, reason: e.reason, runner: runnerOf(e) }))
@@ -86,6 +91,34 @@ export function batterAt(rows: LineupRow[], slot: number, seq: number): LineupRo
   if (pinch.length) return pinch[pinch.length - 1]
   const regular = inSlot.filter((r) => r.entry_type !== '臨時代打' && r.entry_type !== '臨時代走' && (r.entered_at ?? 0) <= seq)
   return regular[regular.length - 1] ?? null
+}
+
+// 塁上の走者に代走・臨時代走が出ていれば、その人に置き換える。
+// 代走の行は、その走者が塁に出た打席より後（entered_at が大きい）で、次の打席までに出たものだけを使う
+export function substituteRunners(bases: Bases, rows: LineupRow[], pas: PlateAppearance[], nextSeq: number): Bases {
+  const next: Bases = { ...bases }
+  for (const b of BASES) {
+    const runner = next[b]
+    if (!runner?.lineupId) continue
+    const row = rows.find((r) => r.id === runner.lineupId)
+    if (!row || row.batting_slot === null) continue
+    const reachedSeq = pas
+      .filter((p) => p.is_offense && rows.find((r) => r.id === p.batter_lineup_id)?.batting_slot === row.batting_slot)
+      .reduce((m, p) => Math.max(m, p.seq), 0)
+    const sub = rows
+      .filter(
+        (r) =>
+          r.batting_slot === row.batting_slot &&
+          (r.entry_type === '代走' || r.entry_type === '臨時代走') &&
+          r.entered_at !== null &&
+          r.entered_at > reachedSeq &&
+          r.entered_at <= nextSeq
+      )
+      .sort(rowOrder)
+      .pop()
+    if (sub) next[b] = { lineupId: sub.id, opponentSlot: null }
+  }
+  return next
 }
 
 export function slotCount(game: Pick<ScoringGame, 'lineup_size'>, rows: LineupRow[]) {
@@ -141,7 +174,7 @@ export function computeGameState(
       isOffense: true,
       top: isTop(game, true),
       outs: halfOuts(events, inning, true),
-      bases: halfBases(events, inning, true),
+      bases: substituteRunners(halfBases(events, inning, true), rows, pas, nextSeq),
       score,
       defensePending: false,
       nextSeq,

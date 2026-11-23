@@ -281,3 +281,138 @@ describe('halfBases / nextBattingSlot', () => {
     expect(nextBattingSlot(game(), lineup, [])).toBe(1)
   })
 })
+
+// ---- 打席の間のプレー ----
+
+import { buildBetweenRecord, defaultTargets, lastOperation, predictBetween, withoutOperation } from './between'
+import { substituteRunners } from './state'
+
+// 打席と打席の間のプレーを挟みながら進める
+type Step = PaResult | { between: Parameters<typeof predictBetween>[0]; targets?: ('1' | '2' | '3')[] }
+function playSteps(g: ScoringGame, rows: LineupRow[], steps: Step[], skipped = new Set<number>()) {
+  const pas: PlateAppearance[] = []
+  const events: RunnerEvent[] = []
+  let n = 0
+  for (const step of steps) {
+    const state = computeGameState(g, rows, pas, events, skipped)
+    if (typeof step === 'string') {
+      const p = predictPlay(step, state.bases, state.outs)
+      const rec = buildOffenseRecord(
+        state,
+        { result: step, moves: p.moves, rbi: p.rbi, fielders: null, direction: null, oppPitcherThrows: 'R' },
+        () => `id${++n}`
+      )
+      pas.push(rec.pa)
+      events.push(...rec.events)
+    } else {
+      const targets = step.targets ?? defaultTargets(step.between, state.bases)
+      events.push(...buildBetweenRecord(state, predictBetween(step.between, state.bases, targets), () => `id${++n}`))
+    }
+  }
+  return { pas, events, state: computeGameState(g, rows, pas, events, skipped) }
+}
+
+describe('打席の間のプレー', () => {
+  it('盗塁: 一塁走者が二塁へ（打者はそのまま）', () => {
+    const { state } = playSteps(game(), lineup, ['単打', { between: '盗塁' }])
+    expect(state.bases['2']?.lineupId).toBe('p1')
+    expect(state.bases['1']).toBeNull()
+    expect(state.batter?.id).toBe('p2')
+    expect(state.outs).toBe(0)
+  })
+
+  it('盗塁の初期値は、次の塁が空いている先頭の走者', () => {
+    expect(defaultTargets('盗塁', bases('a', undefined, 'c'))).toEqual(['1'])
+    expect(defaultTargets('盗塁', bases('a', 'b'))).toEqual(['2'])
+  })
+
+  it('盗塁死でアウトが増え、走者が消える', () => {
+    const { state } = playSteps(game(), lineup, ['単打', { between: '盗塁死' }])
+    expect(state.outs).toBe(1)
+    expect(state.bases['1']).toBeNull()
+  })
+
+  it('ボークは全走者が1つ進み、まとめて1つのプレーとして適用される', () => {
+    const { state, events } = playSteps(game(), lineup, ['単打', '単打', { between: 'ボーク', targets: [] }])
+    expect(state.bases['3']?.lineupId).toBe('p1')
+    expect(state.bases['2']?.lineupId).toBe('p2')
+    expect(state.bases['1']).toBeNull()
+    const balk = events.filter((e) => e.reason === 'ボーク')
+    expect(balk).toHaveLength(2)
+    expect(new Set(balk.map((e) => e.seq)).size).toBe(1)
+  })
+
+  it('暴投・捕逸は選んだ走者だけ進む', () => {
+    expect(predictBetween('暴投', bases('a', undefined, 'c'), ['3']).map((m) => `${m.from}>${m.to}`)).toEqual(['3>H'])
+    expect(predictBetween('捕逸', bases('a', 'b'), ['1', '2']).map((m) => `${m.from}>${m.to}`)).toEqual(['2>3', '1>2'])
+  })
+
+  it('暴投での得点は点になるが、打席がないので打点はつかない', () => {
+    const { state, pas } = playSteps(game(), lineup, ['三塁打', { between: '暴投' }])
+    expect(state.score.our).toBe(1)
+    expect(pas.reduce((s, p) => s + p.rbi, 0)).toBe(0)
+    expect(state.bases['3']).toBeNull()
+  })
+
+  it('牽制死の初期値は一番後ろの走者', () => {
+    expect(defaultTargets('牽制死', bases('a', undefined, 'c'))).toEqual(['1'])
+  })
+
+  it('盗塁死で3アウト → 攻守交代、次の回はその打席を終えていない打者から', () => {
+    // 1番・2番が凡退、3番が単打、4番の打席中に3番が盗塁死
+    const { state } = playSteps(game(), lineup, ['フライ', 'ゴロ', '単打', { between: '盗塁死' }], new Set([1]))
+    expect(state).toMatchObject({ inning: 2, isOffense: true, outs: 0, battingSlot: 4 })
+    expect(state.batter?.id).toBe('p4')
+  })
+
+  it('盗塁死で3アウトになると、守備の回になる', () => {
+    const { state } = playSteps(game(), lineup, ['フライ', 'ゴロ', '単打', { between: '盗塁死' }])
+    expect(state).toMatchObject({ inning: 1, isOffense: false, defensePending: true })
+  })
+})
+
+describe('直前の操作の取り消し', () => {
+  it('最後が打席の間のプレーなら、そのプレーだけを取り消す', () => {
+    const { pas, events } = playSteps(game(), lineup, ['単打', '単打', { between: 'ボーク', targets: [] }])
+    const op = lastOperation(pas, events)
+    expect(op?.kind).toBe('play')
+    expect(op?.events).toHaveLength(2)
+    const after = withoutOperation(op!, pas, events)
+    expect(after.pas).toHaveLength(2)
+    const s = computeGameState(game(), lineup, after.pas, after.events)
+    expect(s.bases['2']?.lineupId).toBe('p1')
+    expect(s.bases['1']?.lineupId).toBe('p2')
+  })
+
+  it('最後が打席なら、その打席と走者の動きを取り消す', () => {
+    const { pas, events } = playSteps(game(), lineup, ['単打', { between: '盗塁' }, '二塁打'])
+    const op = lastOperation(pas, events)
+    expect(op?.kind).toBe('pa')
+    const after = withoutOperation(op!, pas, events)
+    expect(after.pas).toHaveLength(1)
+    const s = computeGameState(game(), lineup, after.pas, after.events)
+    expect(s.bases['2']?.lineupId).toBe('p1')
+    expect(s.score.our).toBe(0)
+  })
+
+  it('何も記録がなければ null', () => {
+    expect(lastOperation([], [])).toBeNull()
+  })
+})
+
+describe('代走・臨時代走', () => {
+  it('走者が出たあとの代走は、塁上の走者を置き換える', () => {
+    const rows = [...lineup, row('pr', 1, { entry_type: '代走', entered_at: 2 })]
+    const { pas, events, state } = playSteps(game(), rows, ['単打'])
+    expect(state.bases['1']?.lineupId).toBe('pr')
+    // 代走の行は、そのあと塁に出た新しい打席には使わない
+    expect(substituteRunners(bases('p1'), rows, [...pas, { ...pas[0], id: 'x', seq: 20 }], 21)['1']?.lineupId).toBe('p1')
+    expect(events).toHaveLength(1)
+  })
+
+  it('臨時代走で生還した得点も記録される（走者は臨時代走の人）', () => {
+    const rows = [...lineup, row('tr', 1, { entry_type: '臨時代走', entered_at: 2 })]
+    const { events } = playSteps(game(), rows, ['単打', '本塁打'])
+    expect(events.find((e) => e.from_base === '1')?.runner_lineup_id).toBe('tr')
+  })
+})
