@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Game, GameInfoInput } from '@/lib/types'
 import ConfirmDialog from './ConfirmDialog'
 import GameInfoForm from './GameInfoForm'
-import GameInfoSummary, { GameStatusBadge, NextStepPending } from './GameInfoSummary'
+import GameInfoSummary, { GameStatusBadge, NextStepLink } from './GameInfoSummary'
 
 interface Props {
   game: Game
@@ -91,7 +91,7 @@ export default function TeamGameManager({ game: initialGame, teamName, defaultIn
         )}
       </section>
 
-      <NextStepPending />
+      <NextStepLink href={`/mypage/games/${game.id}/lineup`} />
 
       <button
         type="button"

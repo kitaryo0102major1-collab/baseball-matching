@@ -20,6 +20,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 | `/mypage` | 自チームの募集管理 | `MyTeamPosts`、`MemberRenewCard` |
 | `/mypage/team`、`/mypage/team/new`、`/mypage/team/members` | チームの編集・作成・管理者と招待 | `TeamForm`、`MembersManager` |
 | `/mypage/games`、`/mypage/games/new`、`/mypage/games/[id]` | チームの試合。年度ごとの一覧（`?year=`、年度の開始月はチーム設定）・作成・試合情報の編集と削除。打順・入力はまだない | `TeamGameCreate`、`TeamGameManager`、`GameInfoForm` |
+| `/mypage/games/[id]/lineup`、`/scores/[id]/lineup` | 打順と交代（スタメン・交代の記録と取り消し・相手の打順）。打席入力はまだない | `LineupEditor`（共通）、`TeamLineup`、`GuestLineup` |
 | `/scores` | ゲストの「この端末で記録した試合」（後のタスクで紹介ページにし、一覧は部品のまま下部に置く） | `GuestGamesList` |
 | `/scores/new`、`/scores/[id]/edit` | ゲストの試合の作成・試合情報の編集と削除。編集用リンクは `/scores/[id]/edit#token` | `GuestGameCreate`、`GuestGameEditor`、`GuestEditLink` |
 | `/mypage/players` | 選手名簿（追加・編集・退団・削除、在籍／助っ人／退団の絞り込み）。選択中のチームの名簿を出す | `PlayersManager` |
@@ -52,6 +53,8 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - `visitor.ts`: 端末ごとのランダムID（localStorage の `visitor_id`）。`getVisitorId()` は読むだけ、`getOrCreateVisitorId()` はなければ作って保存する。localStorage が使えないときはどちらも null を返すので、呼び出し側は記録を省く
 - `seo.ts`: `pageMetadata()`。canonical と OG を毎回まとめて指定する（子の `openGraph` は親を丸ごと置き換えるため）
 - `games.ts`: 試合の定数（種類・守備の記録方式とその説明・予定イニングと打順人数の範囲）と計算（`gameScore()` 得点、`gameResult()` 勝敗、`seasonYear()`・`seasonRange()`・`seasonLabel()` 年度、`gameDateLabel()`）
+- `lineup.ts`: 打順と交代の扱い（`LineupRow`、今その打順にいる人 `currentRow()`、守備位置の重複、再出場できる人、交代の種類）。ゲストが前に使った名前（localStorage `guest_player_names`）と、名簿の案内を閉じた印（`hide_roster_tip`）
+- `useGuestGame.ts`: ゲストの試合をトークンを確かめてから読むフック、`saveScoreGame()`（変えた項目だけ渡し、ほかの子の行は読んだものを送り返す）
 - `guestGames.ts`: ゲストの試合の編集用トークンを試合IDとセットで localStorage（`guest_games`）に保存する。読み書きは try/catch で、使えないときは空として扱う。`guestEditUrl()` は編集用リンク（トークンは # の後ろでサーバーに送らない）
 - `players.ts`: 選手名簿の定数と表示（守備位置 `FIELD_POSITIONS`、投打の選択肢、`handednessLabel()`、背番号順の `comparePlayers()`）
 - `types.ts`、`prefectures.ts`: 型と定数（移動できる範囲の選択肢は `TRAVEL_RANGES`）
@@ -173,6 +176,9 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 - 選手は試合に出ていると削除できない（退団は `active = false`）。チーム削除では試合・選手ごと消える
 - 試合の画面: 試合情報のフォーム `GameInfoForm` はゲスト・チーム共通（自チーム名はゲストだけ）。終わり方（`end_reason`）は確定時に入れるのでフォームにない。打順人数は「9人／全員打ち（10〜30人）」。予定イニングの初期値はチームなら `teams.innings_per_game`、ゲストは7
 - ゲストの試合の画面は匿名クライアント（`@/lib/supabase`）で関数を呼ぶ。試合情報だけを保存するときも、`get_score_game` で読んだ子の行を `save_guest_game` にそのまま送り返す（送らないと消える）
+- 打順と交代（`game_lineups`）: 先発は `entry_type = 先発`・`entered_at` null。交代は同じ `batting_slot` に行を足し、`entered_at`（何打席目から）→ `created_at` の順に並べて最後の行が今いる人。臨時代走・臨時代打は今いる人に数えない。投手交代は `entry_type = 守備`・`position = 1`。DH のときの投手は `batting_slot` null の行。再出場は先発で出て今は交代している人だけ
+- 打順の保存: チームは消した行を delete してから残りを upsert、ゲストは `save_guest_game` で丸ごと入れ替え（`created_at` は送った値が残る）
+- `games.opponent_lineup`（text[]）: 相手の打順の名前。打順番号 = 位置 + 1、名前は任意で末尾の空欄は保存しない。守備を「相手も1打席ずつ」で記録する試合だけで使う
 - `/scores` 以下はすべて noindex で、sitemap からも外している（`next-sitemap.config.js` の exclude。紹介ページにしたら `/scores` だけ外す）
 - 名簿画面（`/mypage/players`）は `game_lineups(count)` と `player_season_imports(count)` で記録の有無を取り、記録がない選手にだけ削除ボタンを出す（過去データを取り込んだ選手も、削除すると取り込み分が消えるので削除させない）。表示名は必須で、本名と同じなら保存前に公開されることを確認する
 

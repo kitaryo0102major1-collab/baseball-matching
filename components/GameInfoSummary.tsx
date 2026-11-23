@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { DEFENSE_MODES, STANDARD_LINEUP_SIZE, gameDateLabel } from '@/lib/games'
 import type { Game } from '@/lib/types'
 
@@ -55,12 +56,14 @@ export function GameStatusBadge({ status }: { status: Game['status'] }) {
   )
 }
 
-// 打順・打席入力は次のタスクで作る
-export function NextStepPending() {
+// 試合情報の画面から打順の画面へ
+export function NextStepLink({ href }: { href: string }) {
   return (
-    <div className="bg-[var(--bg)] border border-dashed border-[var(--line)] rounded-2xl p-4 text-center">
-      <p className="text-sm font-bold text-[var(--ink-sub)]">次は打順の入力（準備中）</p>
-      <p className="text-xs text-[var(--ink-mute)] mt-1">打順と打席の入力は、もうすぐ使えるようになります。</p>
-    </div>
+    <Link
+      href={href}
+      className="block text-center bg-[var(--green)] text-white font-bold py-3.5 rounded-xl text-base hover:opacity-90 transition-opacity"
+    >
+      打順と交代を入力する
+    </Link>
   )
 }

@@ -248,6 +248,8 @@ export interface Game {
   lineup_size: number
   use_dh: boolean
   opponent_innings: number[]
+  // 相手の打順の名前（打順番号 = 位置 + 1、名前は任意）。守備を「相手も1打席ずつ」で記録する試合で使う
+  opponent_lineup: string[]
   status: GameStatus
   memo: string | null
   created_at: string

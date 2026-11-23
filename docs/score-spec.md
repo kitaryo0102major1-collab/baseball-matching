@@ -135,6 +135,8 @@ v1.1: **ログインなし（ゲスト）でも1試合ずつ記録できる**よ
 - `games.guest_team_name`: ゲストの試合の自チーム名（チームの試合は teams.name を使う）
 - `game_lineups.guest_bats`、`game_lineups.guest_throws`: ゲストの選手の投打（任意）
 - `pitching_summaries.order_no`: 登板順（勝敗の候補を出すのに使う）
+- `games.opponent_lineup`（text[]）: 相手の打順の名前（打順番号 = 位置 + 1、名前は任意）。守備を「相手も1打席ずつ」で記録するときに使う（打順と交代の画面で追加。仕様書の「5. データ」には相手の打順を置く場所がなかったため）
+- 出場の行の並び: 同じ打順の中は `entered_at` → `created_at` の順。`save_guest_game` は送られた `created_at` を残す
 
 ### ゲストの試合の保存は「丸ごと入れ替え」
 - `save_guest_game` は試合の内容を丸ごと受け取り、子の行（出場・打席・走者・投手成績・勝敗）を全部消して入れ直す。端末に保存した状態を、つながったときにそのまま送る使い方に合わせた
