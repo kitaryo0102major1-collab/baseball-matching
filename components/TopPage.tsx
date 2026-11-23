@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { todayJST } from '@/lib/dates'
@@ -26,6 +26,47 @@ const HOW_TO_STEPS = [
     desc: '日程・場所などを相談して、練習試合を楽しみましょう！',
   },
 ]
+
+const TEAM_BENEFITS = ['募集フォームの自動入力', '助っ人・メンバー募集', '閲覧数と「気になる」の確認', '複数人でチームを管理']
+
+// このトップが画面に出ているか。ログイン中は app/page.tsx の CSS で隠れる（管理チームがないときは TeamHome が
+// data-no-team を付けて出す）ので、<html> の印を見て、隠れている間は問い合わせをしない
+function subscribeHomeMarks(onChange: () => void) {
+  const observer = new MutationObserver(onChange)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-auth', 'data-no-team'] })
+  return () => observer.disconnect()
+}
+
+function isGuestTopShown() {
+  const { auth, noTeam } = document.documentElement.dataset
+  return auth !== 'in' || noTeam !== undefined
+}
+
+function TeamSignupGuide() {
+  return (
+    // ログイン中（管理チームがなく「チームを登録しましょう」カードが出ているときも）は出さない
+    <section className="auth-guest-only mt-10 bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5">
+      <h2 className="font-bold text-[var(--ink)] mb-3">チーム登録するとできること</h2>
+      <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-2 mb-4">
+        {TEAM_BENEFITS.map((b) => (
+          <li key={b} className="flex items-center gap-2 text-sm text-[var(--ink-sub)]">
+            <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden className="shrink-0 text-[var(--green)]">
+              <path d="M4.5 10.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {b}
+          </li>
+        ))}
+      </ul>
+      <Link
+        href="/login"
+        className="inline-block border border-[var(--green)] text-[var(--green)] text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-[var(--green-bg)] transition-colors"
+      >
+        Googleでチーム登録（無料）
+      </Link>
+      <p className="text-xs text-[var(--ink-mute)] mt-2">ログインしなくても対戦相手の募集はできます</p>
+    </section>
+  )
+}
 
 function HowToAccordion() {
   const [open, setOpen] = useState(false)
@@ -65,8 +106,12 @@ function HowToAccordion() {
 export default function TopPage() {
   const [prefectureCounts, setPrefectureCounts] = useState<Record<string, number>>({})
   const [recentPosts, setRecentPosts] = useState<MatchPostWithTeam[]>([])
+  const shown = useSyncExternalStore(subscribeHomeMarks, isGuestTopShown, () => false)
+  const loaded = useRef(false)
 
   useEffect(() => {
+    if (!shown || loaded.current) return
+    loaded.current = true
     const today = todayJST()
 
     async function loadCounts() {
@@ -102,7 +147,7 @@ export default function TopPage() {
 
     loadCounts()
     loadRecent()
-  }, [])
+  }, [shown])
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 sm:py-16">
@@ -227,6 +272,9 @@ export default function TopPage() {
           </div>
         </section>
       )}
+
+      {/* チーム登録の案内（募集の導線より目立たないよう、下の方に置く） */}
+      <TeamSignupGuide />
 
       {/* 使い方アコーディオン */}
       <section className="mt-10">

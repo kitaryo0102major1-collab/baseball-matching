@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { readSelectedTeamCookie, setSelectedTeamCookie } from '@/lib/selectedTeam'
+import { readSelectedTeamCookie, SELECTED_TEAM_EVENT, setSelectedTeamCookie } from '@/lib/selectedTeam'
 import type { TeamSummary } from '@/lib/types'
 import TeamAvatar from './TeamAvatar'
 
@@ -52,6 +52,18 @@ export default function HeaderAccount() {
   useEffect(() => {
     setMenuOpen(false)
   }, [pathname])
+
+  // チームホーム・マイページなど、ほかの場所でチームを切り替えたときもアイコンをすぐ変える
+  useEffect(() => {
+    function onChange(e: Event) {
+      const teamId = (e as CustomEvent<string>).detail
+      setAccount((prev) =>
+        prev.status === 'member' && prev.teams.some((t) => t.id === teamId) ? { ...prev, selectedId: teamId } : prev
+      )
+    }
+    window.addEventListener(SELECTED_TEAM_EVENT, onChange)
+    return () => window.removeEventListener(SELECTED_TEAM_EVENT, onChange)
+  }, [])
 
   useEffect(() => {
     if (!menuOpen) return
