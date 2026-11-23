@@ -120,7 +120,7 @@ export default async function TeamGamesPage({ searchParams }: Props) {
             <h2 className="text-base font-bold text-[var(--ink)]">
               {seasonLabel(season, startMonth)}の試合（{games.length}）
             </h2>
-            {games.length > 0 && (
+            {games.some((g) => g.result) && (
               <p className="text-xs text-[var(--ink-sub)] shrink-0">
                 {record.勝}勝 {record.敗}敗 {record.分}分
               </p>
