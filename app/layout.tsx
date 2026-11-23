@@ -28,14 +28,21 @@ export const metadata: Metadata = {
   },
 }
 
+// ログイン状態を表示前に判定する（ページはサーバーで Cookie を読まずに配信しているため）。
+// Supabase のセッション Cookie（sb-<project>-auth-token、分割時は .0 .1 …）があればログイン中とみなす。
+// 下部タブの出し分け（.auth-member-only / .auth-guest-only）に使い、表示後の変化は BottomTabBar が追従する
+const AUTH_HINT_SCRIPT = `try{document.documentElement.dataset.auth=/(?:^|; )sb-[^=;]+-auth-token(?:\\.\\d+)?=/.test(document.cookie)?'in':'out'}catch(e){}`
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <html lang="ja" className="h-full">
+    // data-auth は下のスクリプトが表示前に付けるので、サーバーの HTML と食い違っても警告しない
+    <html lang="ja" className="h-full" suppressHydrationWarning>
       <body className={`${zenKaku.className} min-h-full flex flex-col`}>
+        <script dangerouslySetInnerHTML={{ __html: AUTH_HINT_SCRIPT }} />
         <Header />
         <main className="flex-1">{children}</main>
         <footer className="bg-[var(--bg)] text-[var(--ink-mute)] text-center py-4 text-xs mt-auto space-y-1">

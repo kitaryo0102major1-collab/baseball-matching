@@ -23,7 +23,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 | `/login`、`/auth/callback` | Google ログイン | `GoogleLoginButton` |
 | `/privacy` | プライバシーポリシー | |
 
-共通レイアウトは `app/layout.tsx`（`Header`、`BottomTabBar`）。middleware は `proxy.ts` で、`sb-` Cookie がある訪問者のセッションだけ更新する。
+共通レイアウトは `app/layout.tsx`（`Header`、`BottomTabBar`）。ページはサーバーで Cookie を読まずに配信しているので、ログイン状態で見た目を出し分けるときは、`<body>` 先頭のスクリプトが表示前に付ける `<html data-auth="in|out">` と、`globals.css` の `.auth-member-only` / `.auth-guest-only` を使う（下部タブの「マイページ／ログイン」がこの方式。表示後の変化は `BottomTabBar` が `onAuthStateChange` で追従）。middleware は `proxy.ts` で、`sb-` Cookie がある訪問者のセッションだけ更新する。
 
 ## lib の共通処理
 
@@ -104,7 +104,7 @@ Next.js 16（App Router）/ Supabase / Tailwind / TypeScript。main に push す
 
 - 両テーブルとも API から直接は読み書きできない。下の関数（security definer）だけを使う。どれも `visitor_id`（`lib/visitor.ts`）を渡す
   - `record_post_view(p_post_id, p_visitor_id)`: 閲覧を記録。同じ端末は1日（日本時間）1回まで。そのチームの管理者と、ゲスト募集を投稿した端末の閲覧は記録しない。募集詳細の `RecordPostView` が表示後に呼ぶ（ボットらしき User-Agent と「終了しました」表示の募集では呼ばない）
-  - `like_post(p_post_id, p_visitor_id)` / `unlike_post(p_post_id, p_visitor_id)`: 気になるの追加・取り消し。ログイン中なら `user_id` も残る。そのチームの管理者が呼んでも記録しない
+  - `like_post(p_post_id, p_visitor_id)` / `unlike_post(p_post_id, p_visitor_id)`: 気になるの追加・取り消し。ログイン中なら `user_id` も残る。そのチームの管理者や、ゲスト募集を投稿した端末が呼んでも記録しない
   - `get_post_like_counts(p_post_ids[], p_visitor_id?)`: 気になる数を複数の募集でまとめて取得（最大200件、誰でも可）。0件の募集は行を返さない。`liked` はその端末が付けたか
   - `get_post_view_count(p_post_id, p_visitor_id?)`: 閲覧数（のべ）。チームの募集はそのチームの管理者、ゲスト募集は投稿した端末（`creator_visitor_id` が一致）だけ。それ以外は null
   - `get_post_view_counts(p_post_ids[], p_visitor_id?)`: 閲覧数を複数の募集でまとめて取得（最大200件）。見られる人の判定は `get_post_view_count` と同じで、見られない募集は null

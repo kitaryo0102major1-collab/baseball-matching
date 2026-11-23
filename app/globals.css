@@ -19,3 +19,9 @@ body {
   background: var(--bg);
   color: var(--ink);
 }
+
+/* ログイン状態で出し分ける要素。<html data-auth> は app/layout.tsx の先頭スクリプトが表示前に付ける */
+html[data-auth='in'] .auth-guest-only,
+html:not([data-auth='in']) .auth-member-only {
+  display: none;
+}

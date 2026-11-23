@@ -2,8 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-const TABS = [
+interface Tab {
+  href: string
+  label: string
+  icon: string
+  // ログイン状態で出し分けるタブ（app/globals.css の .auth-member-only / .auth-guest-only）
+  className?: string
+}
+
+const TABS: Tab[] = [
   {
     href: '/',
     label: 'ホーム',
@@ -23,13 +33,31 @@ const TABS = [
     href: '/mypage',
     label: 'マイページ',
     icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+    className: 'auth-member-only',
+  },
+  {
+    href: '/login',
+    label: 'ログイン',
+    icon: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
+    className: 'auth-guest-only',
   },
 ]
+
+// タブバーを出すページ（ログインページでは出さない）
+const TAB_BAR_PATHS = ['/', '/posts', '/teams', '/mypage']
 
 export default function BottomTabBar() {
   const pathname = usePathname()
 
-  if (!TABS.some((tab) => tab.href === pathname)) return null
+  // 最初の判定は app/layout.tsx の先頭スクリプト（Cookie）。ログアウトなど表示後の変化はここで反映する
+  useEffect(() => {
+    const { data } = createClient().auth.onAuthStateChange((_event, session) => {
+      document.documentElement.dataset.auth = session ? 'in' : 'out'
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  if (!TAB_BAR_PATHS.includes(pathname)) return null
 
   return (
     <>
@@ -50,7 +78,7 @@ export default function BottomTabBar() {
                 aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-1 min-w-0 text-[11px] ${
                   active ? 'font-bold text-[var(--green)]' : 'font-medium text-[var(--ink-mute)]'
-                }`}
+                } ${tab.className ?? ''}`}
               >
                 <svg
                   width="22"
